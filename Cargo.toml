@@ -6,3 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+beam_file = "0.3"
+thiserror = "1"
+
+[dev-dependencies]
+anyhow = "1"
+clap = { version = "3", features = ["derive"] }

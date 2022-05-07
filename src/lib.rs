@@ -1,8 +1,8 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
+use beam_file::chunk::CodeChunk;
+
+#[derive(Debug, thiserror::Error)]
+pub enum ParseError {}
+
+pub fn parse_code_chunk(code_chunk: &CodeChunk) -> Result<(), ParseError> {
+    todo!()
 }
