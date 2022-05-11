@@ -53,14 +53,33 @@ pub type DecodeError = ParseError;
 #[derive(Debug, Clone)]
 pub enum CompactTerm {
     Literal(Literal),
+    Atom(Atom),
     Todo,
 }
 
 impl CompactTerm {
+    // TODO: impl `TryFrom` trait
+    pub fn try_into_literal(self) -> Result<Literal, DecodeError> {
+        match self {
+            CompactTerm::Literal(literal) => Ok(literal),
+            term => Err(DecodeError::unexpected_arg("literal", term)),
+        }
+    }
+
+    pub fn try_into_atom(self) -> Result<Atom, DecodeError> {
+        match self {
+            CompactTerm::Atom(atom) => Ok(atom),
+            term => Err(DecodeError::unexpected_arg("atom", term)),
+        }
+    }
+
     pub fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
         let tag = reader.read_u8()?;
         match tag & 0b111 {
             0b000 => {
+                if (tag & 0b1000) != 0 {
+                    todo!();
+                }
                 let index = (tag >> 4) as usize;
                 Ok(Self::Literal(Literal { index }))
             }
@@ -68,7 +87,11 @@ impl CompactTerm {
                 todo!();
             }
             0b010 => {
-                todo!();
+                if (tag & 0b1000) != 0 {
+                    todo!();
+                }
+                let index = (tag >> 4) as usize;
+                Ok(Self::Atom(Atom { index }))
             }
             0b011 => {
                 todo!();
@@ -94,6 +117,11 @@ pub struct Literal {
     pub index: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Atom {
+    pub index: usize,
+}
+
 #[derive(Debug, Clone)]
 pub struct LabelOp {
     pub literal: Literal,
@@ -104,22 +132,62 @@ impl LabelOp {
     pub const ARITY: usize = 1;
 
     pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        match CompactTerm::decode(reader)? {
-            CompactTerm::Literal(literal) => Ok(Self { literal }),
-            term => Err(DecodeError::unexpected_arg("literal", term)),
-        }
+        let literal = CompactTerm::decode(reader)?.try_into_literal()?;
+        Ok(Self { literal })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FuncInfoOp {
+    pub module: Atom,
+    pub function: Atom,
+    pub arity: Literal,
+}
+
+impl FuncInfoOp {
+    pub const CODE: u8 = 2;
+    pub const ARITY: usize = 3;
+
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let module = CompactTerm::decode(reader)?.try_into_atom()?;
+        let function = CompactTerm::decode(reader)?.try_into_atom()?;
+        let arity = CompactTerm::decode(reader)?.try_into_literal()?;
+        Ok(Self {
+            module,
+            function,
+            arity,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LineOp {
+    pub literal: Literal,
+}
+
+impl LineOp {
+    pub const CODE: u8 = 153;
+    pub const ARITY: usize = 1;
+
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let literal = CompactTerm::decode(reader)?.try_into_literal()?;
+        Ok(Self { literal })
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum Op {
     Label(LabelOp),
+    FuncInfo(FuncInfoOp),
+    Line(LineOp),
 }
 
 impl Op {
     pub fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
         match reader.read_u8()? {
             LabelOp::CODE => LabelOp::decode_args(reader).map(Self::Label),
+            FuncInfoOp::CODE => FuncInfoOp::decode_args(reader).map(Self::FuncInfo),
+            LineOp::CODE => LineOp::decode_args(reader).map(Self::Line),
             op => todo!("{op}"),
         }
     }
@@ -127,12 +195,16 @@ impl Op {
     pub fn opcode(&self) -> u8 {
         match self {
             Self::Label { .. } => LabelOp::CODE,
+            Self::FuncInfo { .. } => FuncInfoOp::CODE,
+            Self::Line { .. } => LineOp::CODE,
         }
     }
 
     pub fn arity(&self) -> usize {
         match self {
             Self::Label { .. } => LabelOp::ARITY,
+            Self::FuncInfo { .. } => FuncInfoOp::ARITY,
+            Self::Line { .. } => LineOp::ARITY,
         }
     }
 }
