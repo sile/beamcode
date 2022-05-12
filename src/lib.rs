@@ -55,6 +55,7 @@ pub enum CompactTerm {
     Literal(Literal),
     Atom(Atom),
     XRegister(XRegister),
+    Label(Label),
     Todo,
 }
 
@@ -90,7 +91,11 @@ impl CompactTerm {
                 todo!();
             }
             0b101 => {
-                todo!()
+                if (tag & 0b1000) != 0 {
+                    todo!();
+                }
+                let index = (tag >> 4) as usize;
+                Ok(Self::Label(Label { index }))
             }
             0b110 => {
                 todo!();
@@ -135,6 +140,17 @@ impl TryFrom<CompactTerm> for XRegister {
     }
 }
 
+impl TryFrom<CompactTerm> for Label {
+    type Error = DecodeError;
+
+    fn try_from(x: CompactTerm) -> Result<Self, Self::Error> {
+        match x {
+            CompactTerm::Label(x) => Ok(x),
+            x => Err(DecodeError::unexpected_arg("label", x)),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Literal {
     pub index: usize,
@@ -147,6 +163,11 @@ pub struct Atom {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct XRegister {
+    pub index: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Label {
     pub index: usize,
 }
 
@@ -189,6 +210,23 @@ impl FuncInfoOp {
 }
 
 #[derive(Debug, Clone)]
+pub struct CallOnlyOp {
+    pub arity: Literal,
+    pub label: Label,
+}
+
+impl CallOnlyOp {
+    pub const CODE: u8 = 6;
+    pub const ARITY: usize = 2;
+
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let arity = CompactTerm::decode(reader)?.try_into()?;
+        let label = CompactTerm::decode(reader)?.try_into()?;
+        Ok(Self { arity, label })
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct MoveOp {
     pub src: Atom,
     pub dst: XRegister,
@@ -224,6 +262,7 @@ impl LineOp {
 pub enum Op {
     Label(LabelOp),
     FuncInfo(FuncInfoOp),
+    CallOnly(CallOnlyOp),
     Move(MoveOp),
     Line(LineOp),
 }
@@ -233,6 +272,7 @@ impl Op {
         match reader.read_u8()? {
             LabelOp::CODE => LabelOp::decode_args(reader).map(Self::Label),
             FuncInfoOp::CODE => FuncInfoOp::decode_args(reader).map(Self::FuncInfo),
+            CallOnlyOp::CODE => CallOnlyOp::decode_args(reader).map(Self::CallOnly),
             MoveOp::CODE => MoveOp::decode_args(reader).map(Self::Move),
             LineOp::CODE => LineOp::decode_args(reader).map(Self::Line),
             op => todo!("{op}"),
@@ -243,6 +283,7 @@ impl Op {
         match self {
             Self::Label { .. } => LabelOp::CODE,
             Self::FuncInfo { .. } => FuncInfoOp::CODE,
+            Self::CallOnly { .. } => CallOnlyOp::CODE,
             Self::Move { .. } => MoveOp::CODE,
             Self::Line { .. } => LineOp::CODE,
         }
@@ -252,6 +293,7 @@ impl Op {
         match self {
             Self::Label { .. } => LabelOp::ARITY,
             Self::FuncInfo { .. } => FuncInfoOp::ARITY,
+            Self::CallOnly { .. } => CallOnlyOp::ARITY,
             Self::Move { .. } => MoveOp::ARITY,
             Self::Line { .. } => LineOp::ARITY,
         }
