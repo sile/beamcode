@@ -178,7 +178,6 @@ pub struct LabelOp {
 
 impl LabelOp {
     pub const CODE: u8 = 1;
-    pub const ARITY: usize = 1;
 
     pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
         let literal = CompactTerm::decode(reader)?.try_into()?;
@@ -195,7 +194,6 @@ pub struct FuncInfoOp {
 
 impl FuncInfoOp {
     pub const CODE: u8 = 2;
-    pub const ARITY: usize = 3;
 
     pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
         let module = CompactTerm::decode(reader)?.try_into()?;
@@ -217,12 +215,27 @@ pub struct CallOnlyOp {
 
 impl CallOnlyOp {
     pub const CODE: u8 = 6;
-    pub const ARITY: usize = 2;
 
     pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
         let arity = CompactTerm::decode(reader)?.try_into()?;
         let label = CompactTerm::decode(reader)?.try_into()?;
         Ok(Self { arity, label })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AllocateOp {
+    pub stack_need: Literal,
+    pub live: Literal,
+}
+
+impl AllocateOp {
+    pub const CODE: u8 = 12;
+
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let stack_need = CompactTerm::decode(reader)?.try_into()?;
+        let live = CompactTerm::decode(reader)?.try_into()?;
+        Ok(Self { stack_need, live })
     }
 }
 
@@ -234,7 +247,6 @@ pub struct MoveOp {
 
 impl MoveOp {
     pub const CODE: u8 = 64;
-    pub const ARITY: usize = 1;
 
     pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
         let src = CompactTerm::decode(reader)?.try_into()?;
@@ -250,7 +262,6 @@ pub struct LineOp {
 
 impl LineOp {
     pub const CODE: u8 = 153;
-    pub const ARITY: usize = 2;
 
     pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
         let literal = CompactTerm::decode(reader)?.try_into()?;
@@ -259,12 +270,28 @@ impl LineOp {
 }
 
 #[derive(Debug, Clone)]
+pub struct InitYregsOp {
+    pub count: Literal, // XXX
+}
+
+impl InitYregsOp {
+    pub const CODE: u8 = 172;
+
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let count = CompactTerm::decode(reader)?.try_into()?;
+        Ok(Self { count })
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Op {
     Label(LabelOp),
     FuncInfo(FuncInfoOp),
     CallOnly(CallOnlyOp),
+    Allocate(AllocateOp),
     Move(MoveOp),
     Line(LineOp),
+    InitYregs(InitYregsOp),
 }
 
 impl Op {
@@ -273,8 +300,10 @@ impl Op {
             LabelOp::CODE => LabelOp::decode_args(reader).map(Self::Label),
             FuncInfoOp::CODE => FuncInfoOp::decode_args(reader).map(Self::FuncInfo),
             CallOnlyOp::CODE => CallOnlyOp::decode_args(reader).map(Self::CallOnly),
+            AllocateOp::CODE => AllocateOp::decode_args(reader).map(Self::Allocate),
             MoveOp::CODE => MoveOp::decode_args(reader).map(Self::Move),
             LineOp::CODE => LineOp::decode_args(reader).map(Self::Line),
+            InitYregsOp::CODE => InitYregsOp::decode_args(reader).map(Self::InitYregs),
             op => todo!("{op}"),
         }
     }
@@ -284,18 +313,10 @@ impl Op {
             Self::Label { .. } => LabelOp::CODE,
             Self::FuncInfo { .. } => FuncInfoOp::CODE,
             Self::CallOnly { .. } => CallOnlyOp::CODE,
+            Self::Allocate { .. } => AllocateOp::CODE,
             Self::Move { .. } => MoveOp::CODE,
             Self::Line { .. } => LineOp::CODE,
-        }
-    }
-
-    pub fn arity(&self) -> usize {
-        match self {
-            Self::Label { .. } => LabelOp::ARITY,
-            Self::FuncInfo { .. } => FuncInfoOp::ARITY,
-            Self::CallOnly { .. } => CallOnlyOp::ARITY,
-            Self::Move { .. } => MoveOp::ARITY,
-            Self::Line { .. } => LineOp::ARITY,
+            Self::InitYregs { .. } => InitYregsOp::CODE,
         }
     }
 }
