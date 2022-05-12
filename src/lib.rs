@@ -54,25 +54,11 @@ pub type DecodeError = ParseError;
 pub enum CompactTerm {
     Literal(Literal),
     Atom(Atom),
+    XRegister(XRegister),
     Todo,
 }
 
 impl CompactTerm {
-    // TODO: impl `TryFrom` trait
-    pub fn try_into_literal(self) -> Result<Literal, DecodeError> {
-        match self {
-            CompactTerm::Literal(literal) => Ok(literal),
-            term => Err(DecodeError::unexpected_arg("literal", term)),
-        }
-    }
-
-    pub fn try_into_atom(self) -> Result<Atom, DecodeError> {
-        match self {
-            CompactTerm::Atom(atom) => Ok(atom),
-            term => Err(DecodeError::unexpected_arg("atom", term)),
-        }
-    }
-
     pub fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
         let tag = reader.read_u8()?;
         match tag & 0b111 {
@@ -94,7 +80,11 @@ impl CompactTerm {
                 Ok(Self::Atom(Atom { index }))
             }
             0b011 => {
-                todo!();
+                if (tag & 0b1000) != 0 {
+                    todo!();
+                }
+                let index = (tag >> 4) as usize;
+                Ok(Self::XRegister(XRegister { index }))
             }
             0b100 => {
                 todo!();
@@ -112,6 +102,39 @@ impl CompactTerm {
     }
 }
 
+impl TryFrom<CompactTerm> for Literal {
+    type Error = DecodeError;
+
+    fn try_from(x: CompactTerm) -> Result<Self, Self::Error> {
+        match x {
+            CompactTerm::Literal(x) => Ok(x),
+            x => Err(DecodeError::unexpected_arg("literal", x)),
+        }
+    }
+}
+
+impl TryFrom<CompactTerm> for Atom {
+    type Error = DecodeError;
+
+    fn try_from(x: CompactTerm) -> Result<Self, Self::Error> {
+        match x {
+            CompactTerm::Atom(x) => Ok(x),
+            x => Err(DecodeError::unexpected_arg("atom", x)),
+        }
+    }
+}
+
+impl TryFrom<CompactTerm> for XRegister {
+    type Error = DecodeError;
+
+    fn try_from(x: CompactTerm) -> Result<Self, Self::Error> {
+        match x {
+            CompactTerm::XRegister(x) => Ok(x),
+            x => Err(DecodeError::unexpected_arg("x-register", x)),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Literal {
     pub index: usize,
@@ -119,6 +142,11 @@ pub struct Literal {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Atom {
+    pub index: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct XRegister {
     pub index: usize,
 }
 
@@ -132,7 +160,7 @@ impl LabelOp {
     pub const ARITY: usize = 1;
 
     pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let literal = CompactTerm::decode(reader)?.try_into_literal()?;
+        let literal = CompactTerm::decode(reader)?.try_into()?;
         Ok(Self { literal })
     }
 }
@@ -149,14 +177,31 @@ impl FuncInfoOp {
     pub const ARITY: usize = 3;
 
     pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let module = CompactTerm::decode(reader)?.try_into_atom()?;
-        let function = CompactTerm::decode(reader)?.try_into_atom()?;
-        let arity = CompactTerm::decode(reader)?.try_into_literal()?;
+        let module = CompactTerm::decode(reader)?.try_into()?;
+        let function = CompactTerm::decode(reader)?.try_into()?;
+        let arity = CompactTerm::decode(reader)?.try_into()?;
         Ok(Self {
             module,
             function,
             arity,
         })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct MoveOp {
+    pub src: Atom,
+    pub dst: XRegister,
+}
+
+impl MoveOp {
+    pub const CODE: u8 = 64;
+    pub const ARITY: usize = 1;
+
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let src = CompactTerm::decode(reader)?.try_into()?;
+        let dst = CompactTerm::decode(reader)?.try_into()?;
+        Ok(Self { src, dst })
     }
 }
 
@@ -167,10 +212,10 @@ pub struct LineOp {
 
 impl LineOp {
     pub const CODE: u8 = 153;
-    pub const ARITY: usize = 1;
+    pub const ARITY: usize = 2;
 
     pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let literal = CompactTerm::decode(reader)?.try_into_literal()?;
+        let literal = CompactTerm::decode(reader)?.try_into()?;
         Ok(Self { literal })
     }
 }
@@ -179,6 +224,7 @@ impl LineOp {
 pub enum Op {
     Label(LabelOp),
     FuncInfo(FuncInfoOp),
+    Move(MoveOp),
     Line(LineOp),
 }
 
@@ -187,6 +233,7 @@ impl Op {
         match reader.read_u8()? {
             LabelOp::CODE => LabelOp::decode_args(reader).map(Self::Label),
             FuncInfoOp::CODE => FuncInfoOp::decode_args(reader).map(Self::FuncInfo),
+            MoveOp::CODE => MoveOp::decode_args(reader).map(Self::Move),
             LineOp::CODE => LineOp::decode_args(reader).map(Self::Line),
             op => todo!("{op}"),
         }
@@ -196,6 +243,7 @@ impl Op {
         match self {
             Self::Label { .. } => LabelOp::CODE,
             Self::FuncInfo { .. } => FuncInfoOp::CODE,
+            Self::Move { .. } => MoveOp::CODE,
             Self::Line { .. } => LineOp::CODE,
         }
     }
@@ -204,6 +252,7 @@ impl Op {
         match self {
             Self::Label { .. } => LabelOp::ARITY,
             Self::FuncInfo { .. } => FuncInfoOp::ARITY,
+            Self::Move { .. } => MoveOp::ARITY,
             Self::Line { .. } => LineOp::ARITY,
         }
     }
