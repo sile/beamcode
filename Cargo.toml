@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 beam_file = "0.3"
 byteorder = "1"
-eetf = "0.8"
 thiserror = "1"
 
 [dev-dependencies]

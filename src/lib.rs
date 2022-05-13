@@ -1,24 +1,8 @@
-use beam_file::chunk::{CodeChunk, LitTChunk};
+use beam_file::chunk::CodeChunk;
 use byteorder::ReadBytesExt as _;
 use std::io::Read;
 
 pub const INSTRUCTION_SET_VERSION: u32 = 0;
-
-#[derive(Debug, Clone)]
-pub struct LiteralTable {
-    pub literals: Vec<eetf::Term>,
-}
-
-impl LiteralTable {
-    pub fn new(chunk: &LitTChunk) -> Result<Self, eetf::DecodeError> {
-        let literals = chunk
-            .literals
-            .iter()
-            .map(|l| eetf::Term::decode(l.as_slice()))
-            .collect::<Result<_, _>>()?;
-        Ok(Self { literals })
-    }
-}
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
@@ -44,7 +28,7 @@ impl ParseError {
     }
 }
 
-pub fn parse_code_chunk(chunk: &CodeChunk, table: &LiteralTable) -> Result<(), ParseError> {
+pub fn parse_code_chunk(chunk: &CodeChunk) -> Result<(), ParseError> {
     if chunk.version != INSTRUCTION_SET_VERSION {
         return Err(ParseError::UnsupportedInstructionSetVersion {
             version: chunk.version,
@@ -58,7 +42,7 @@ pub fn parse_code_chunk(chunk: &CodeChunk, table: &LiteralTable) -> Result<(), P
     dbg!(chunk.bytecode.len());
     let mut reader = &mut &chunk.bytecode[..];
     while !reader.is_empty() {
-        let op = Op::decode(&mut reader, table)?;
+        let op = Op::decode(&mut reader)?;
         dbg!(op);
     }
     todo!()
@@ -70,16 +54,24 @@ pub fn decode_compact_term() {}
 pub type DecodeError = ParseError;
 
 #[derive(Debug, Clone)]
+pub struct ValueAndLabel {
+    pub value: CompactTerm,
+    pub label: Label,
+}
+
+#[derive(Debug, Clone)]
 pub enum CompactTerm {
     Literal(Literal),
     Atom(Atom),
     XRegister(XRegister),
+    YRegister(YRegister),
     Label(Label),
+    List(List),
     Todo,
 }
 
 impl CompactTerm {
-    pub fn decode<R: Read>(reader: &mut R, table: &LiteralTable) -> Result<Self, DecodeError> {
+    pub fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
         let tag = reader.read_u8()?;
         match tag & 0b111 {
             0b000 => {
@@ -107,7 +99,11 @@ impl CompactTerm {
                 Ok(Self::XRegister(XRegister { index }))
             }
             0b100 => {
-                todo!();
+                if (tag & 0b1000) != 0 {
+                    todo!();
+                }
+                let index = (tag >> 4) as usize;
+                Ok(Self::YRegister(YRegister { index }))
             }
             0b101 => {
                 if (tag & 0b1000) != 0 {
@@ -121,9 +117,12 @@ impl CompactTerm {
             }
             _ => match tag >> 3 {
                 0b00010 => {
-                    let size: Literal = Self::decode(reader, table)?.try_into()?;
-                    dbg!(size);
-                    todo!("list");
+                    let size: Literal = Self::decode(reader)?.try_into()?;
+                    let mut elements = Vec::with_capacity(size.index);
+                    for _ in 0..size.index {
+                        elements.push(Self::decode(reader)?);
+                    }
+                    Ok(Self::List(List { elements }))
                 }
                 0b00100 => {
                     todo!("floating point register");
@@ -173,6 +172,17 @@ impl TryFrom<CompactTerm> for XRegister {
     }
 }
 
+impl TryFrom<CompactTerm> for YRegister {
+    type Error = DecodeError;
+
+    fn try_from(x: CompactTerm) -> Result<Self, Self::Error> {
+        match x {
+            CompactTerm::YRegister(x) => Ok(x),
+            x => Err(DecodeError::unexpected_arg("y-register", x)),
+        }
+    }
+}
+
 impl TryFrom<CompactTerm> for Label {
     type Error = DecodeError;
 
@@ -180,6 +190,17 @@ impl TryFrom<CompactTerm> for Label {
         match x {
             CompactTerm::Label(x) => Ok(x),
             x => Err(DecodeError::unexpected_arg("label", x)),
+        }
+    }
+}
+
+impl TryFrom<CompactTerm> for List {
+    type Error = DecodeError;
+
+    fn try_from(x: CompactTerm) -> Result<Self, Self::Error> {
+        match x {
+            CompactTerm::List(x) => Ok(x),
+            x => Err(DecodeError::unexpected_arg("list", x)),
         }
     }
 }
@@ -200,8 +221,18 @@ pub struct XRegister {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct YRegister {
+    pub index: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Label {
     pub index: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct List {
+    pub elements: Vec<CompactTerm>,
 }
 
 #[derive(Debug, Clone)]
@@ -212,8 +243,8 @@ pub struct LabelOp {
 impl LabelOp {
     pub const CODE: u8 = 1;
 
-    pub fn decode_args<R: Read>(reader: &mut R, table: &LiteralTable) -> Result<Self, DecodeError> {
-        let literal = CompactTerm::decode(reader, table)?.try_into()?;
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let literal = CompactTerm::decode(reader)?.try_into()?;
         Ok(Self { literal })
     }
 }
@@ -228,10 +259,10 @@ pub struct FuncInfoOp {
 impl FuncInfoOp {
     pub const CODE: u8 = 2;
 
-    pub fn decode_args<R: Read>(reader: &mut R, table: &LiteralTable) -> Result<Self, DecodeError> {
-        let module = CompactTerm::decode(reader, table)?.try_into()?;
-        let function = CompactTerm::decode(reader, table)?.try_into()?;
-        let arity = CompactTerm::decode(reader, table)?.try_into()?;
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let module = CompactTerm::decode(reader)?.try_into()?;
+        let function = CompactTerm::decode(reader)?.try_into()?;
+        let arity = CompactTerm::decode(reader)?.try_into()?;
         Ok(Self {
             module,
             function,
@@ -249,9 +280,9 @@ pub struct CallOnlyOp {
 impl CallOnlyOp {
     pub const CODE: u8 = 6;
 
-    pub fn decode_args<R: Read>(reader: &mut R, table: &LiteralTable) -> Result<Self, DecodeError> {
-        let arity = CompactTerm::decode(reader, table)?.try_into()?;
-        let label = CompactTerm::decode(reader, table)?.try_into()?;
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let arity = CompactTerm::decode(reader)?.try_into()?;
+        let label = CompactTerm::decode(reader)?.try_into()?;
         Ok(Self { arity, label })
     }
 }
@@ -265,9 +296,9 @@ pub struct AllocateOp {
 impl AllocateOp {
     pub const CODE: u8 = 12;
 
-    pub fn decode_args<R: Read>(reader: &mut R, table: &LiteralTable) -> Result<Self, DecodeError> {
-        let stack_need = CompactTerm::decode(reader, table)?.try_into()?;
-        let live = CompactTerm::decode(reader, table)?.try_into()?;
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let stack_need = CompactTerm::decode(reader)?.try_into()?;
+        let live = CompactTerm::decode(reader)?.try_into()?;
         Ok(Self { stack_need, live })
     }
 }
@@ -281,9 +312,9 @@ pub struct MoveOp {
 impl MoveOp {
     pub const CODE: u8 = 64;
 
-    pub fn decode_args<R: Read>(reader: &mut R, table: &LiteralTable) -> Result<Self, DecodeError> {
-        let src = CompactTerm::decode(reader, table)?.try_into()?;
-        let dst = CompactTerm::decode(reader, table)?.try_into()?;
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let src = CompactTerm::decode(reader)?.try_into()?;
+        let dst = CompactTerm::decode(reader)?.try_into()?;
         Ok(Self { src, dst })
     }
 }
@@ -296,23 +327,28 @@ pub struct LineOp {
 impl LineOp {
     pub const CODE: u8 = 153;
 
-    pub fn decode_args<R: Read>(reader: &mut R, table: &LiteralTable) -> Result<Self, DecodeError> {
-        let literal = CompactTerm::decode(reader, table)?.try_into()?;
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let literal = CompactTerm::decode(reader)?.try_into()?;
         Ok(Self { literal })
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct InitYregsOp {
-    pub count: Literal, // XXX
+    pub registers: Vec<YRegister>,
 }
 
 impl InitYregsOp {
     pub const CODE: u8 = 172;
 
-    pub fn decode_args<R: Read>(reader: &mut R, table: &LiteralTable) -> Result<Self, DecodeError> {
-        let count = CompactTerm::decode(reader, table)?.try_into()?;
-        Ok(Self { count })
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let list: List = CompactTerm::decode(reader)?.try_into()?;
+        let registers = list
+            .elements
+            .into_iter()
+            .map(|x| x.try_into())
+            .collect::<Result<_, _>>()?;
+        Ok(Self { registers })
     }
 }
 
@@ -328,15 +364,15 @@ pub enum Op {
 }
 
 impl Op {
-    pub fn decode<R: Read>(reader: &mut R, table: &LiteralTable) -> Result<Self, DecodeError> {
+    pub fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
         match reader.read_u8()? {
-            LabelOp::CODE => LabelOp::decode_args(reader, table).map(Self::Label),
-            FuncInfoOp::CODE => FuncInfoOp::decode_args(reader, table).map(Self::FuncInfo),
-            CallOnlyOp::CODE => CallOnlyOp::decode_args(reader, table).map(Self::CallOnly),
-            AllocateOp::CODE => AllocateOp::decode_args(reader, table).map(Self::Allocate),
-            MoveOp::CODE => MoveOp::decode_args(reader, table).map(Self::Move),
-            LineOp::CODE => LineOp::decode_args(reader, table).map(Self::Line),
-            InitYregsOp::CODE => InitYregsOp::decode_args(reader, table).map(Self::InitYregs),
+            LabelOp::CODE => LabelOp::decode_args(reader).map(Self::Label),
+            FuncInfoOp::CODE => FuncInfoOp::decode_args(reader).map(Self::FuncInfo),
+            CallOnlyOp::CODE => CallOnlyOp::decode_args(reader).map(Self::CallOnly),
+            AllocateOp::CODE => AllocateOp::decode_args(reader).map(Self::Allocate),
+            MoveOp::CODE => MoveOp::decode_args(reader).map(Self::Move),
+            LineOp::CODE => LineOp::decode_args(reader).map(Self::Line),
+            InitYregsOp::CODE => InitYregsOp::decode_args(reader).map(Self::InitYregs),
             op => todo!("{op}"),
         }
     }
