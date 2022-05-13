@@ -320,6 +320,22 @@ impl MoveOp {
 }
 
 #[derive(Debug, Clone)]
+pub struct TryOp {
+    pub register: YRegister,
+    pub label: Label,
+}
+
+impl TryOp {
+    pub const CODE: u8 = 104;
+
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let register = CompactTerm::decode(reader)?.try_into()?;
+        let label = CompactTerm::decode(reader)?.try_into()?;
+        Ok(Self { register, label })
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct LineOp {
     pub literal: Literal,
 }
@@ -359,6 +375,7 @@ pub enum Op {
     CallOnly(CallOnlyOp),
     Allocate(AllocateOp),
     Move(MoveOp),
+    Try(TryOp),
     Line(LineOp),
     InitYregs(InitYregsOp),
 }
@@ -371,6 +388,7 @@ impl Op {
             CallOnlyOp::CODE => CallOnlyOp::decode_args(reader).map(Self::CallOnly),
             AllocateOp::CODE => AllocateOp::decode_args(reader).map(Self::Allocate),
             MoveOp::CODE => MoveOp::decode_args(reader).map(Self::Move),
+            TryOp::CODE => TryOp::decode_args(reader).map(Self::Try),
             LineOp::CODE => LineOp::decode_args(reader).map(Self::Line),
             InitYregsOp::CODE => InitYregsOp::decode_args(reader).map(Self::InitYregs),
             op => todo!("{op}"),
@@ -383,6 +401,7 @@ impl Op {
             Self::FuncInfo { .. } => FuncInfoOp::CODE,
             Self::CallOnly { .. } => CallOnlyOp::CODE,
             Self::Allocate { .. } => AllocateOp::CODE,
+            Self::Try { .. } => TryOp::CODE,
             Self::Move { .. } => MoveOp::CODE,
             Self::Line { .. } => LineOp::CODE,
             Self::InitYregs { .. } => InitYregsOp::CODE,
