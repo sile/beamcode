@@ -106,11 +106,16 @@ impl CompactTerm {
                 Ok(Self::YRegister(YRegister { index }))
             }
             0b101 => {
-                if (tag & 0b1000) != 0 {
+                if (tag & 0b1_000) == 0 {
+                    let index = (tag >> 4) as usize;
+                    Ok(Self::Label(Label { index }))
+                } else if (tag & 0b10_000) == 0 {
+                    let v = reader.read_u8()? as usize;
+                    let index = (usize::from(tag & 0b111_00_000) << 3) | v;
+                    Ok(Self::Label(Label { index }))
+                } else {
                     todo!();
                 }
-                let index = (tag >> 4) as usize;
-                Ok(Self::Label(Label { index }))
             }
             0b110 => {
                 todo!();
@@ -183,6 +188,18 @@ impl TryFrom<CompactTerm> for YRegister {
     }
 }
 
+impl TryFrom<CompactTerm> for Register {
+    type Error = DecodeError;
+
+    fn try_from(x: CompactTerm) -> Result<Self, Self::Error> {
+        match x {
+            CompactTerm::XRegister(x) => Ok(Register::X(x)),
+            CompactTerm::YRegister(x) => Ok(Register::Y(x)),
+            x => Err(DecodeError::unexpected_arg("x-register or y-register", x)),
+        }
+    }
+}
+
 impl TryFrom<CompactTerm> for Label {
     type Error = DecodeError;
 
@@ -223,6 +240,12 @@ pub struct XRegister {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct YRegister {
     pub index: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Register {
+    X(XRegister),
+    Y(YRegister),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -268,6 +291,22 @@ impl FuncInfoOp {
             function,
             arity,
         })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CallOp {
+    pub arity: Literal,
+    pub label: Label,
+}
+
+impl CallOp {
+    pub const CODE: u8 = 4;
+
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let arity = CompactTerm::decode(reader)?.try_into()?;
+        let label = CompactTerm::decode(reader)?.try_into()?;
+        Ok(Self { arity, label })
     }
 }
 
@@ -320,8 +359,33 @@ impl AllocateOp {
 }
 
 #[derive(Debug, Clone)]
+pub struct DeallocateOp {
+    pub n: Literal,
+}
+
+impl DeallocateOp {
+    pub const CODE: u8 = 18;
+
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let n = CompactTerm::decode(reader)?.try_into()?;
+        Ok(Self { n })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ReturnOp {}
+
+impl ReturnOp {
+    pub const CODE: u8 = 19;
+
+    pub fn decode_args<R: Read>(_reader: &mut R) -> Result<Self, DecodeError> {
+        Ok(Self {})
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct MoveOp {
-    pub src: Atom,
+    pub src: CompactTerm,
     pub dst: XRegister,
 }
 
@@ -329,9 +393,31 @@ impl MoveOp {
     pub const CODE: u8 = 64;
 
     pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let src = CompactTerm::decode(reader)?.try_into()?;
+        let src = CompactTerm::decode(reader)?;
         let dst = CompactTerm::decode(reader)?.try_into()?;
         Ok(Self { src, dst })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct GetTupleElementOp {
+    pub source: XRegister,
+    pub element: Literal,
+    pub destination: Register,
+}
+
+impl GetTupleElementOp {
+    pub const CODE: u8 = 66;
+
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let source = CompactTerm::decode(reader)?.try_into()?;
+        let element = CompactTerm::decode(reader)?.try_into()?;
+        let destination = CompactTerm::decode(reader)?.try_into()?;
+        Ok(Self {
+            source,
+            element,
+            destination,
+        })
     }
 }
 
@@ -352,6 +438,20 @@ impl TryOp {
 }
 
 #[derive(Debug, Clone)]
+pub struct TryEndOp {
+    pub register: YRegister,
+}
+
+impl TryEndOp {
+    pub const CODE: u8 = 105;
+
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let register = CompactTerm::decode(reader)?.try_into()?;
+        Ok(Self { register })
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct LineOp {
     pub literal: Literal,
 }
@@ -362,6 +462,31 @@ impl LineOp {
     pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
         let literal = CompactTerm::decode(reader)?.try_into()?;
         Ok(Self { literal })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct IsTaggedTupleOp {
+    pub label: Label,
+    pub register: XRegister,
+    pub arity: Literal,
+    pub atom: Atom,
+}
+
+impl IsTaggedTupleOp {
+    pub const CODE: u8 = 159;
+
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let label = CompactTerm::decode(reader)?.try_into()?;
+        let register = CompactTerm::decode(reader)?.try_into()?;
+        let arity = CompactTerm::decode(reader)?.try_into()?;
+        let atom = CompactTerm::decode(reader)?.try_into()?;
+        Ok(Self {
+            label,
+            register,
+            arity,
+            atom,
+        })
     }
 }
 
@@ -388,12 +513,18 @@ impl InitYregsOp {
 pub enum Op {
     Label(LabelOp),
     FuncInfo(FuncInfoOp),
+    Call(CallOp),
     CallOnly(CallOnlyOp),
     CallExt(CallExtOp),
     Allocate(AllocateOp),
+    Deallocate(DeallocateOp),
+    Return(ReturnOp),
     Move(MoveOp),
+    GetTupleElement(GetTupleElementOp),
     Try(TryOp),
+    TryEnd(TryEndOp),
     Line(LineOp),
+    IsTaggedTuple(IsTaggedTupleOp),
     InitYregs(InitYregsOp),
 }
 
@@ -402,28 +533,22 @@ impl Op {
         match reader.read_u8()? {
             LabelOp::CODE => LabelOp::decode_args(reader).map(Self::Label),
             FuncInfoOp::CODE => FuncInfoOp::decode_args(reader).map(Self::FuncInfo),
+            CallOp::CODE => CallOp::decode_args(reader).map(Self::Call),
             CallOnlyOp::CODE => CallOnlyOp::decode_args(reader).map(Self::CallOnly),
             CallExtOp::CODE => CallExtOp::decode_args(reader).map(Self::CallExt),
             AllocateOp::CODE => AllocateOp::decode_args(reader).map(Self::Allocate),
+            DeallocateOp::CODE => DeallocateOp::decode_args(reader).map(Self::Deallocate),
+            ReturnOp::CODE => ReturnOp::decode_args(reader).map(Self::Return),
             MoveOp::CODE => MoveOp::decode_args(reader).map(Self::Move),
+            GetTupleElementOp::CODE => {
+                GetTupleElementOp::decode_args(reader).map(Self::GetTupleElement)
+            }
             TryOp::CODE => TryOp::decode_args(reader).map(Self::Try),
+            TryEndOp::CODE => TryEndOp::decode_args(reader).map(Self::TryEnd),
             LineOp::CODE => LineOp::decode_args(reader).map(Self::Line),
+            IsTaggedTupleOp::CODE => IsTaggedTupleOp::decode_args(reader).map(Self::IsTaggedTuple),
             InitYregsOp::CODE => InitYregsOp::decode_args(reader).map(Self::InitYregs),
             op => todo!("{op}"),
-        }
-    }
-
-    pub fn opcode(&self) -> u8 {
-        match self {
-            Self::Label { .. } => LabelOp::CODE,
-            Self::FuncInfo { .. } => FuncInfoOp::CODE,
-            Self::CallOnly { .. } => CallOnlyOp::CODE,
-            Self::CallExt { .. } => CallExtOp::CODE,
-            Self::Allocate { .. } => AllocateOp::CODE,
-            Self::Try { .. } => TryOp::CODE,
-            Self::Move { .. } => MoveOp::CODE,
-            Self::Line { .. } => LineOp::CODE,
-            Self::InitYregs { .. } => InitYregsOp::CODE,
         }
     }
 }
