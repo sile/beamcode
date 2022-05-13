@@ -288,6 +288,22 @@ impl CallOnlyOp {
 }
 
 #[derive(Debug, Clone)]
+pub struct CallExtOp {
+    pub arity: Literal,
+    pub destination: Literal, // TODO: s/Literal/ImportTableIndex/
+}
+
+impl CallExtOp {
+    pub const CODE: u8 = 7;
+
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let arity = CompactTerm::decode(reader)?.try_into()?;
+        let destination = CompactTerm::decode(reader)?.try_into()?;
+        Ok(Self { arity, destination })
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct AllocateOp {
     pub stack_need: Literal,
     pub live: Literal,
@@ -373,6 +389,7 @@ pub enum Op {
     Label(LabelOp),
     FuncInfo(FuncInfoOp),
     CallOnly(CallOnlyOp),
+    CallExt(CallExtOp),
     Allocate(AllocateOp),
     Move(MoveOp),
     Try(TryOp),
@@ -386,6 +403,7 @@ impl Op {
             LabelOp::CODE => LabelOp::decode_args(reader).map(Self::Label),
             FuncInfoOp::CODE => FuncInfoOp::decode_args(reader).map(Self::FuncInfo),
             CallOnlyOp::CODE => CallOnlyOp::decode_args(reader).map(Self::CallOnly),
+            CallExtOp::CODE => CallExtOp::decode_args(reader).map(Self::CallExt),
             AllocateOp::CODE => AllocateOp::decode_args(reader).map(Self::Allocate),
             MoveOp::CODE => MoveOp::decode_args(reader).map(Self::Move),
             TryOp::CODE => TryOp::decode_args(reader).map(Self::Try),
@@ -400,6 +418,7 @@ impl Op {
             Self::Label { .. } => LabelOp::CODE,
             Self::FuncInfo { .. } => FuncInfoOp::CODE,
             Self::CallOnly { .. } => CallOnlyOp::CODE,
+            Self::CallExt { .. } => CallExtOp::CODE,
             Self::Allocate { .. } => AllocateOp::CODE,
             Self::Try { .. } => TryOp::CODE,
             Self::Move { .. } => MoveOp::CODE,
