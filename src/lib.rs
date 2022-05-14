@@ -384,6 +384,74 @@ impl ReturnOp {
 }
 
 #[derive(Debug, Clone)]
+pub struct IsEqExactOp {
+    pub label: Label,
+    pub arg1: CompactTerm,
+    pub arg2: CompactTerm,
+}
+
+impl IsEqExactOp {
+    pub const CODE: u8 = 43;
+
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let label = CompactTerm::decode(reader)?.try_into()?;
+        let arg1 = CompactTerm::decode(reader)?;
+        let arg2 = CompactTerm::decode(reader)?;
+        Ok(Self { label, arg1, arg2 })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct IsNonemptyListOp {
+    pub label: Label,
+    pub arg1: CompactTerm,
+}
+
+impl IsNonemptyListOp {
+    pub const CODE: u8 = 56;
+
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let label = CompactTerm::decode(reader)?.try_into()?;
+        let arg1 = CompactTerm::decode(reader)?;
+        Ok(Self { label, arg1 })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct IsTupleOp {
+    pub label: Label,
+    pub arg1: CompactTerm,
+}
+
+impl IsTupleOp {
+    pub const CODE: u8 = 57;
+
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let label = CompactTerm::decode(reader)?.try_into()?;
+        let arg1 = CompactTerm::decode(reader)?;
+        Ok(Self { label, arg1 })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TestArityOp {
+    pub label: Label,
+    pub arg1: CompactTerm,
+    pub arity: Literal,
+}
+
+impl TestArityOp {
+    pub const CODE: u8 = 58;
+
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let label = CompactTerm::decode(reader)?.try_into()?;
+        let arg1 = CompactTerm::decode(reader)?;
+        let arity = CompactTerm::decode(reader)?.try_into()?;
+        Ok(Self { label, arg1, arity })
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct MoveOp {
     pub src: CompactTerm,
     pub dst: XRegister,
@@ -400,8 +468,26 @@ impl MoveOp {
 }
 
 #[derive(Debug, Clone)]
+pub struct GetListOp {
+    pub source: CompactTerm,
+    pub head: Register,
+    pub tail: Register,
+}
+
+impl GetListOp {
+    pub const CODE: u8 = 65;
+
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let source = CompactTerm::decode(reader)?;
+        let head = CompactTerm::decode(reader)?.try_into()?;
+        let tail = CompactTerm::decode(reader)?.try_into()?;
+        Ok(Self { source, head, tail })
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct GetTupleElementOp {
-    pub source: XRegister,
+    pub source: Register,
     pub element: Literal,
     pub destination: Register,
 }
@@ -444,6 +530,20 @@ pub struct TryEndOp {
 
 impl TryEndOp {
     pub const CODE: u8 = 105;
+
+    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let register = CompactTerm::decode(reader)?.try_into()?;
+        Ok(Self { register })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TryCaseOp {
+    pub register: YRegister,
+}
+
+impl TryCaseOp {
+    pub const CODE: u8 = 106;
 
     pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
         let register = CompactTerm::decode(reader)?.try_into()?;
@@ -519,10 +619,16 @@ pub enum Op {
     Allocate(AllocateOp),
     Deallocate(DeallocateOp),
     Return(ReturnOp),
+    IsEqExact(IsEqExactOp),
+    IsNonemptyList(IsNonemptyListOp),
+    IsTuple(IsTupleOp),
+    TestArity(TestArityOp),
     Move(MoveOp),
+    GetList(GetListOp),
     GetTupleElement(GetTupleElementOp),
     Try(TryOp),
     TryEnd(TryEndOp),
+    TryCase(TryCaseOp),
     Line(LineOp),
     IsTaggedTuple(IsTaggedTupleOp),
     InitYregs(InitYregsOp),
@@ -539,12 +645,20 @@ impl Op {
             AllocateOp::CODE => AllocateOp::decode_args(reader).map(Self::Allocate),
             DeallocateOp::CODE => DeallocateOp::decode_args(reader).map(Self::Deallocate),
             ReturnOp::CODE => ReturnOp::decode_args(reader).map(Self::Return),
+            IsEqExactOp::CODE => IsEqExactOp::decode_args(reader).map(Self::IsEqExact),
+            IsNonemptyListOp::CODE => {
+                IsNonemptyListOp::decode_args(reader).map(Self::IsNonemptyList)
+            }
+            IsTupleOp::CODE => IsTupleOp::decode_args(reader).map(Self::IsTuple),
+            TestArityOp::CODE => TestArityOp::decode_args(reader).map(Self::TestArity),
             MoveOp::CODE => MoveOp::decode_args(reader).map(Self::Move),
+            GetListOp::CODE => GetListOp::decode_args(reader).map(Self::GetList),
             GetTupleElementOp::CODE => {
                 GetTupleElementOp::decode_args(reader).map(Self::GetTupleElement)
             }
             TryOp::CODE => TryOp::decode_args(reader).map(Self::Try),
             TryEndOp::CODE => TryEndOp::decode_args(reader).map(Self::TryEnd),
+            TryCaseOp::CODE => TryCaseOp::decode_args(reader).map(Self::TryCase),
             LineOp::CODE => LineOp::decode_args(reader).map(Self::Line),
             IsTaggedTupleOp::CODE => IsTaggedTupleOp::decode_args(reader).map(Self::IsTaggedTuple),
             InitYregsOp::CODE => InitYregsOp::decode_args(reader).map(Self::InitYregs),
