@@ -1,5 +1,5 @@
 use beam_file::chunk::CodeChunk;
-use beamop_derive::{Decode, DecodeOperands};
+use beamop_derive::{Decode, DecodeOperands, Opcode};
 use byteorder::ReadBytesExt as _;
 use std::io::Read;
 
@@ -11,6 +11,10 @@ pub trait Decode: Sized {
 
 pub trait DecodeOperands: Sized {
     fn decode_operands<R: Read>(reader: &mut R) -> Result<Self, DecodeError>;
+}
+
+pub trait Opcode {
+    const CODE: u8;
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -294,287 +298,204 @@ pub struct List {
 }
 
 // TODO: check https://blog.stenmans.org/theBeamBook/#_list_of_all_beam_instructions
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(1)]
 pub struct LabelOp {
     pub literal: Literal,
 }
 
-impl LabelOp {
-    pub const CODE: u8 = 1;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(2)]
 pub struct FuncInfoOp {
     pub module: Atom,
     pub function: Atom,
     pub arity: Literal,
 }
 
-impl FuncInfoOp {
-    pub const CODE: u8 = 2;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(4)]
 pub struct CallOp {
     pub arity: Literal,
     pub label: Label,
 }
 
-impl CallOp {
-    pub const CODE: u8 = 4;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(6)]
 pub struct CallOnlyOp {
     pub arity: Literal,
     pub label: Label,
 }
 
-impl CallOnlyOp {
-    pub const CODE: u8 = 6;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(7)]
 pub struct CallExtOp {
     pub arity: Literal,
     pub destination: Literal, // TODO: s/Literal/ImportTableIndex/
 }
 
-impl CallExtOp {
-    pub const CODE: u8 = 7;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(8)]
 pub struct CallExtLastOp {
     pub arity: Literal,
     pub destination: Literal, // TODO: s/Literal/ImportTableIndex/
     pub deallocate: Literal,
 }
 
-impl CallExtLastOp {
-    pub const CODE: u8 = 8;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(12)]
 pub struct AllocateOp {
     pub stack_need: Literal,
     pub live: Literal,
 }
 
-impl AllocateOp {
-    pub const CODE: u8 = 12;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(13)]
 pub struct AllocateHeapOp {
     pub stack_need: Literal,
     pub heap_need: Literal,
     pub live: Literal,
 }
 
-impl AllocateHeapOp {
-    pub const CODE: u8 = 13;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(15)]
 pub struct AllocateHeapZeroOp {
     pub stack_need: Literal,
     pub heap_need: Literal,
     pub live: Literal,
 }
 
-impl AllocateHeapZeroOp {
-    pub const CODE: u8 = 15;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(16)]
 pub struct TestHeapOp {
     pub heap_need: Literal,
     pub live: Literal,
 }
 
-impl TestHeapOp {
-    pub const CODE: u8 = 16;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(18)]
 pub struct DeallocateOp {
     pub n: Literal,
 }
 
-impl DeallocateOp {
-    pub const CODE: u8 = 18;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(19)]
 pub struct ReturnOp {}
 
-impl ReturnOp {
-    pub const CODE: u8 = 19;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(43)]
 pub struct IsEqExactOp {
     pub label: Label,
     pub arg1: CompactTerm,
     pub arg2: CompactTerm,
 }
 
-impl IsEqExactOp {
-    pub const CODE: u8 = 43;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(52)]
 pub struct IsNilOp {
     pub label: Label,
     pub arg1: CompactTerm,
 }
 
-impl IsNilOp {
-    pub const CODE: u8 = 52;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(56)]
 pub struct IsNonemptyListOp {
     pub label: Label,
     pub arg1: CompactTerm,
 }
 
-impl IsNonemptyListOp {
-    pub const CODE: u8 = 56;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(57)]
 pub struct IsTupleOp {
     pub label: Label,
     pub arg1: CompactTerm,
 }
 
-impl IsTupleOp {
-    pub const CODE: u8 = 57;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(58)]
 pub struct TestArityOp {
     pub label: Label,
     pub arg1: CompactTerm,
     pub arity: Literal,
 }
 
-impl TestArityOp {
-    pub const CODE: u8 = 58;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(64)]
 pub struct MoveOp {
     pub src: CompactTerm,
     pub dst: XRegister,
 }
 
-impl MoveOp {
-    pub const CODE: u8 = 64;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(65)]
 pub struct GetListOp {
     pub source: CompactTerm,
     pub head: Register,
     pub tail: Register,
 }
 
-impl GetListOp {
-    pub const CODE: u8 = 65;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(66)]
 pub struct GetTupleElementOp {
     pub source: Register,
     pub element: Literal,
     pub destination: Register,
 }
 
-impl GetTupleElementOp {
-    pub const CODE: u8 = 66;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(69)]
 pub struct PutListOp {
     pub head: CompactTerm,
     pub tail: CompactTerm,
     pub destination: Register,
 }
 
-impl PutListOp {
-    pub const CODE: u8 = 69;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(72)]
 pub struct BadmatchOp {
     pub arg1: CompactTerm, // TODO
 }
 
-impl BadmatchOp {
-    pub const CODE: u8 = 72;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(78)]
 pub struct CallExtOnlyOp {
     pub arity: Literal,
     pub destination: Literal, // TODO: s/Literal/ImportTableIndex/
 }
 
-impl CallExtOnlyOp {
-    pub const CODE: u8 = 78;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(104)]
 pub struct TryOp {
     pub register: YRegister,
     pub label: Label,
 }
 
-impl TryOp {
-    pub const CODE: u8 = 104;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(105)]
 pub struct TryEndOp {
     pub register: YRegister,
 }
 
-impl TryEndOp {
-    pub const CODE: u8 = 105;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(106)]
 pub struct TryCaseOp {
     pub register: YRegister,
 }
 
-impl TryCaseOp {
-    pub const CODE: u8 = 106;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(108)]
 pub struct RaiseOp {
     pub stacktrace: CompactTerm,
     pub exc_value: CompactTerm,
 }
 
-impl RaiseOp {
-    pub const CODE: u8 = 108;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(153)]
 pub struct LineOp {
     pub literal: Literal,
 }
 
-impl LineOp {
-    pub const CODE: u8 = 153;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(159)]
 pub struct IsTaggedTupleOp {
     pub label: Label,
     pub register: XRegister,
@@ -582,24 +503,14 @@ pub struct IsTaggedTupleOp {
     pub atom: Atom,
 }
 
-impl IsTaggedTupleOp {
-    pub const CODE: u8 = 159;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(160)]
 pub struct BuildStacktraceOp {}
 
-impl BuildStacktraceOp {
-    pub const CODE: u8 = 160;
-}
-
-#[derive(Debug, Clone, DecodeOperands)]
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(172)]
 pub struct InitYregsOp {
     pub registers: Vec<YRegister>,
-}
-
-impl InitYregsOp {
-    pub const CODE: u8 = 172;
 }
 
 #[derive(Debug, Clone, Decode)]
