@@ -93,11 +93,16 @@ impl CompactTerm {
         let tag = reader.read_u8()?;
         match tag & 0b111 {
             0b000 => {
-                if (tag & 0b1000) != 0 {
+                if (tag & 0b1_000) == 0 {
+                    let index = (tag >> 4) as usize;
+                    Ok(Self::Literal(Literal { index }))
+                } else if (tag & 0b10_000) == 0 {
+                    let v = reader.read_u8()? as usize;
+                    let index = (usize::from(tag & 0b111_00_000) << 3) | v;
+                    Ok(Self::Literal(Literal { index }))
+                } else {
                     todo!();
                 }
-                let index = (tag >> 4) as usize;
-                Ok(Self::Literal(Literal { index }))
             }
             0b001 => {
                 todo!();
@@ -340,6 +345,17 @@ impl CallExtOp {
 }
 
 #[derive(Debug, Clone, DecodeOperands)]
+pub struct CallExtLastOp {
+    pub arity: Literal,
+    pub destination: Literal, // TODO: s/Literal/ImportTableIndex/
+    pub deallocate: Literal,
+}
+
+impl CallExtLastOp {
+    pub const CODE: u8 = 8;
+}
+
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct AllocateOp {
     pub stack_need: Literal,
     pub live: Literal,
@@ -347,6 +363,28 @@ pub struct AllocateOp {
 
 impl AllocateOp {
     pub const CODE: u8 = 12;
+}
+
+#[derive(Debug, Clone, DecodeOperands)]
+pub struct AllocateHeapOp {
+    pub stack_need: Literal,
+    pub heap_need: Literal,
+    pub live: Literal,
+}
+
+impl AllocateHeapOp {
+    pub const CODE: u8 = 13;
+}
+
+#[derive(Debug, Clone, DecodeOperands)]
+pub struct AllocateHeapZeroOp {
+    pub stack_need: Literal,
+    pub heap_need: Literal,
+    pub live: Literal,
+}
+
+impl AllocateHeapZeroOp {
+    pub const CODE: u8 = 15;
 }
 
 #[derive(Debug, Clone, DecodeOperands)]
@@ -471,6 +509,25 @@ impl PutListOp {
 }
 
 #[derive(Debug, Clone, DecodeOperands)]
+pub struct BadmatchOp {
+    pub arg1: CompactTerm, // TODO
+}
+
+impl BadmatchOp {
+    pub const CODE: u8 = 72;
+}
+
+#[derive(Debug, Clone, DecodeOperands)]
+pub struct CallExtOnlyOp {
+    pub arity: Literal,
+    pub destination: Literal, // TODO: s/Literal/ImportTableIndex/
+}
+
+impl CallExtOnlyOp {
+    pub const CODE: u8 = 78;
+}
+
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct TryOp {
     pub register: YRegister,
     pub label: Label,
@@ -496,6 +553,16 @@ pub struct TryCaseOp {
 
 impl TryCaseOp {
     pub const CODE: u8 = 106;
+}
+
+#[derive(Debug, Clone, DecodeOperands)]
+pub struct RaiseOp {
+    pub stacktrace: CompactTerm,
+    pub exc_value: CompactTerm,
+}
+
+impl RaiseOp {
+    pub const CODE: u8 = 108;
 }
 
 #[derive(Debug, Clone, DecodeOperands)]
@@ -538,9 +605,14 @@ impl InitYregsOp {
 #[derive(Debug, Clone, Decode)]
 pub enum Op {
     Allocate(AllocateOp),
+    AllocateHeap(AllocateHeapOp),
+    AllocateHeapZero(AllocateHeapZeroOp),
+    Badmatch(BadmatchOp),
     BuildStacktrace(BuildStacktraceOp),
     Call(CallOp),
     CallExt(CallExtOp),
+    CallExtLast(CallExtLastOp),
+    CallExtOnly(CallExtOnlyOp),
     CallOnly(CallOnlyOp),
     Deallocate(DeallocateOp),
     FuncInfo(FuncInfoOp),
@@ -556,6 +628,7 @@ pub enum Op {
     Line(LineOp),
     Move(MoveOp),
     PutList(PutListOp),
+    Raise(RaiseOp),
     Return(ReturnOp),
     TestArity(TestArityOp),
     TestHeap(TestHeapOp),
