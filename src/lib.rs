@@ -1,8 +1,13 @@
 use beam_file::chunk::CodeChunk;
+use beamop_derive::DecodeOperands;
 use byteorder::ReadBytesExt as _;
 use std::io::Read;
 
 pub const INSTRUCTION_SET_VERSION: u32 = 0;
+
+pub trait DecodeOperands: Sized {
+    fn decode_operands<R: Read>(reader: &mut R) -> Result<Self, DecodeError>;
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
@@ -20,6 +25,12 @@ pub enum ParseError {
 
     #[error(transparent)]
     IoError(#[from] std::io::Error),
+}
+
+impl From<std::convert::Infallible> for ParseError {
+    fn from(_: std::convert::Infallible) -> Self {
+        unreachable!()
+    }
 }
 
 impl ParseError {
@@ -258,21 +269,16 @@ pub struct List {
     pub elements: Vec<CompactTerm>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct LabelOp {
     pub literal: Literal,
 }
 
 impl LabelOp {
     pub const CODE: u8 = 1;
-
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let literal = CompactTerm::decode(reader)?.try_into()?;
-        Ok(Self { literal })
-    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct FuncInfoOp {
     pub module: Atom,
     pub function: Atom,
@@ -281,20 +287,9 @@ pub struct FuncInfoOp {
 
 impl FuncInfoOp {
     pub const CODE: u8 = 2;
-
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let module = CompactTerm::decode(reader)?.try_into()?;
-        let function = CompactTerm::decode(reader)?.try_into()?;
-        let arity = CompactTerm::decode(reader)?.try_into()?;
-        Ok(Self {
-            module,
-            function,
-            arity,
-        })
-    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct CallOp {
     pub arity: Literal,
     pub label: Label,
@@ -302,15 +297,9 @@ pub struct CallOp {
 
 impl CallOp {
     pub const CODE: u8 = 4;
-
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let arity = CompactTerm::decode(reader)?.try_into()?;
-        let label = CompactTerm::decode(reader)?.try_into()?;
-        Ok(Self { arity, label })
-    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct CallOnlyOp {
     pub arity: Literal,
     pub label: Label,
@@ -318,15 +307,9 @@ pub struct CallOnlyOp {
 
 impl CallOnlyOp {
     pub const CODE: u8 = 6;
-
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let arity = CompactTerm::decode(reader)?.try_into()?;
-        let label = CompactTerm::decode(reader)?.try_into()?;
-        Ok(Self { arity, label })
-    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct CallExtOp {
     pub arity: Literal,
     pub destination: Literal, // TODO: s/Literal/ImportTableIndex/
@@ -334,15 +317,9 @@ pub struct CallExtOp {
 
 impl CallExtOp {
     pub const CODE: u8 = 7;
-
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let arity = CompactTerm::decode(reader)?.try_into()?;
-        let destination = CompactTerm::decode(reader)?.try_into()?;
-        Ok(Self { arity, destination })
-    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct AllocateOp {
     pub stack_need: Literal,
     pub live: Literal,
@@ -350,40 +327,25 @@ pub struct AllocateOp {
 
 impl AllocateOp {
     pub const CODE: u8 = 12;
-
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let stack_need = CompactTerm::decode(reader)?.try_into()?;
-        let live = CompactTerm::decode(reader)?.try_into()?;
-        Ok(Self { stack_need, live })
-    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct DeallocateOp {
     pub n: Literal,
 }
 
 impl DeallocateOp {
     pub const CODE: u8 = 18;
-
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let n = CompactTerm::decode(reader)?.try_into()?;
-        Ok(Self { n })
-    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct ReturnOp {}
 
 impl ReturnOp {
     pub const CODE: u8 = 19;
-
-    pub fn decode_args<R: Read>(_reader: &mut R) -> Result<Self, DecodeError> {
-        Ok(Self {})
-    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct IsEqExactOp {
     pub label: Label,
     pub arg1: CompactTerm,
@@ -392,16 +354,9 @@ pub struct IsEqExactOp {
 
 impl IsEqExactOp {
     pub const CODE: u8 = 43;
-
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let label = CompactTerm::decode(reader)?.try_into()?;
-        let arg1 = CompactTerm::decode(reader)?;
-        let arg2 = CompactTerm::decode(reader)?;
-        Ok(Self { label, arg1, arg2 })
-    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct IsNonemptyListOp {
     pub label: Label,
     pub arg1: CompactTerm,
@@ -409,15 +364,9 @@ pub struct IsNonemptyListOp {
 
 impl IsNonemptyListOp {
     pub const CODE: u8 = 56;
-
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let label = CompactTerm::decode(reader)?.try_into()?;
-        let arg1 = CompactTerm::decode(reader)?;
-        Ok(Self { label, arg1 })
-    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct IsTupleOp {
     pub label: Label,
     pub arg1: CompactTerm,
@@ -425,15 +374,9 @@ pub struct IsTupleOp {
 
 impl IsTupleOp {
     pub const CODE: u8 = 57;
-
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let label = CompactTerm::decode(reader)?.try_into()?;
-        let arg1 = CompactTerm::decode(reader)?;
-        Ok(Self { label, arg1 })
-    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct TestArityOp {
     pub label: Label,
     pub arg1: CompactTerm,
@@ -442,16 +385,9 @@ pub struct TestArityOp {
 
 impl TestArityOp {
     pub const CODE: u8 = 58;
-
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let label = CompactTerm::decode(reader)?.try_into()?;
-        let arg1 = CompactTerm::decode(reader)?;
-        let arity = CompactTerm::decode(reader)?.try_into()?;
-        Ok(Self { label, arg1, arity })
-    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct MoveOp {
     pub src: CompactTerm,
     pub dst: XRegister,
@@ -459,15 +395,9 @@ pub struct MoveOp {
 
 impl MoveOp {
     pub const CODE: u8 = 64;
-
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let src = CompactTerm::decode(reader)?;
-        let dst = CompactTerm::decode(reader)?.try_into()?;
-        Ok(Self { src, dst })
-    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct GetListOp {
     pub source: CompactTerm,
     pub head: Register,
@@ -476,16 +406,9 @@ pub struct GetListOp {
 
 impl GetListOp {
     pub const CODE: u8 = 65;
-
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let source = CompactTerm::decode(reader)?;
-        let head = CompactTerm::decode(reader)?.try_into()?;
-        let tail = CompactTerm::decode(reader)?.try_into()?;
-        Ok(Self { source, head, tail })
-    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct GetTupleElementOp {
     pub source: Register,
     pub element: Literal,
@@ -494,20 +417,9 @@ pub struct GetTupleElementOp {
 
 impl GetTupleElementOp {
     pub const CODE: u8 = 66;
-
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let source = CompactTerm::decode(reader)?.try_into()?;
-        let element = CompactTerm::decode(reader)?.try_into()?;
-        let destination = CompactTerm::decode(reader)?.try_into()?;
-        Ok(Self {
-            source,
-            element,
-            destination,
-        })
-    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct TryOp {
     pub register: YRegister,
     pub label: Label,
@@ -515,57 +427,36 @@ pub struct TryOp {
 
 impl TryOp {
     pub const CODE: u8 = 104;
-
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let register = CompactTerm::decode(reader)?.try_into()?;
-        let label = CompactTerm::decode(reader)?.try_into()?;
-        Ok(Self { register, label })
-    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct TryEndOp {
     pub register: YRegister,
 }
 
 impl TryEndOp {
     pub const CODE: u8 = 105;
-
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let register = CompactTerm::decode(reader)?.try_into()?;
-        Ok(Self { register })
-    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct TryCaseOp {
     pub register: YRegister,
 }
 
 impl TryCaseOp {
     pub const CODE: u8 = 106;
-
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let register = CompactTerm::decode(reader)?.try_into()?;
-        Ok(Self { register })
-    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct LineOp {
     pub literal: Literal,
 }
 
 impl LineOp {
     pub const CODE: u8 = 153;
-
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let literal = CompactTerm::decode(reader)?.try_into()?;
-        Ok(Self { literal })
-    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct IsTaggedTupleOp {
     pub label: Label,
     pub register: XRegister,
@@ -575,38 +466,28 @@ pub struct IsTaggedTupleOp {
 
 impl IsTaggedTupleOp {
     pub const CODE: u8 = 159;
+}
 
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let label = CompactTerm::decode(reader)?.try_into()?;
-        let register = CompactTerm::decode(reader)?.try_into()?;
-        let arity = CompactTerm::decode(reader)?.try_into()?;
-        let atom = CompactTerm::decode(reader)?.try_into()?;
-        Ok(Self {
-            label,
-            register,
-            arity,
-            atom,
-        })
+// TODO: move
+impl TryFrom<CompactTerm> for Vec<YRegister> {
+    type Error = DecodeError;
+
+    fn try_from(term: CompactTerm) -> Result<Self, Self::Error> {
+        let list: List = term.try_into()?;
+        list.elements
+            .into_iter()
+            .map(|x| x.try_into())
+            .collect::<Result<_, _>>()
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct InitYregsOp {
     pub registers: Vec<YRegister>,
 }
 
 impl InitYregsOp {
     pub const CODE: u8 = 172;
-
-    pub fn decode_args<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let list: List = CompactTerm::decode(reader)?.try_into()?;
-        let registers = list
-            .elements
-            .into_iter()
-            .map(|x| x.try_into())
-            .collect::<Result<_, _>>()?;
-        Ok(Self { registers })
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -637,31 +518,33 @@ pub enum Op {
 impl Op {
     pub fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
         match reader.read_u8()? {
-            LabelOp::CODE => LabelOp::decode_args(reader).map(Self::Label),
-            FuncInfoOp::CODE => FuncInfoOp::decode_args(reader).map(Self::FuncInfo),
-            CallOp::CODE => CallOp::decode_args(reader).map(Self::Call),
-            CallOnlyOp::CODE => CallOnlyOp::decode_args(reader).map(Self::CallOnly),
-            CallExtOp::CODE => CallExtOp::decode_args(reader).map(Self::CallExt),
-            AllocateOp::CODE => AllocateOp::decode_args(reader).map(Self::Allocate),
-            DeallocateOp::CODE => DeallocateOp::decode_args(reader).map(Self::Deallocate),
-            ReturnOp::CODE => ReturnOp::decode_args(reader).map(Self::Return),
-            IsEqExactOp::CODE => IsEqExactOp::decode_args(reader).map(Self::IsEqExact),
+            LabelOp::CODE => DecodeOperands::decode_operands(reader).map(Self::Label),
+            FuncInfoOp::CODE => DecodeOperands::decode_operands(reader).map(Self::FuncInfo),
+            CallOp::CODE => DecodeOperands::decode_operands(reader).map(Self::Call),
+            CallOnlyOp::CODE => DecodeOperands::decode_operands(reader).map(Self::CallOnly),
+            CallExtOp::CODE => DecodeOperands::decode_operands(reader).map(Self::CallExt),
+            AllocateOp::CODE => DecodeOperands::decode_operands(reader).map(Self::Allocate),
+            DeallocateOp::CODE => DecodeOperands::decode_operands(reader).map(Self::Deallocate),
+            ReturnOp::CODE => DecodeOperands::decode_operands(reader).map(Self::Return),
+            IsEqExactOp::CODE => DecodeOperands::decode_operands(reader).map(Self::IsEqExact),
             IsNonemptyListOp::CODE => {
-                IsNonemptyListOp::decode_args(reader).map(Self::IsNonemptyList)
+                DecodeOperands::decode_operands(reader).map(Self::IsNonemptyList)
             }
-            IsTupleOp::CODE => IsTupleOp::decode_args(reader).map(Self::IsTuple),
-            TestArityOp::CODE => TestArityOp::decode_args(reader).map(Self::TestArity),
-            MoveOp::CODE => MoveOp::decode_args(reader).map(Self::Move),
-            GetListOp::CODE => GetListOp::decode_args(reader).map(Self::GetList),
+            IsTupleOp::CODE => DecodeOperands::decode_operands(reader).map(Self::IsTuple),
+            TestArityOp::CODE => DecodeOperands::decode_operands(reader).map(Self::TestArity),
+            MoveOp::CODE => DecodeOperands::decode_operands(reader).map(Self::Move),
+            GetListOp::CODE => DecodeOperands::decode_operands(reader).map(Self::GetList),
             GetTupleElementOp::CODE => {
-                GetTupleElementOp::decode_args(reader).map(Self::GetTupleElement)
+                DecodeOperands::decode_operands(reader).map(Self::GetTupleElement)
             }
-            TryOp::CODE => TryOp::decode_args(reader).map(Self::Try),
-            TryEndOp::CODE => TryEndOp::decode_args(reader).map(Self::TryEnd),
-            TryCaseOp::CODE => TryCaseOp::decode_args(reader).map(Self::TryCase),
-            LineOp::CODE => LineOp::decode_args(reader).map(Self::Line),
-            IsTaggedTupleOp::CODE => IsTaggedTupleOp::decode_args(reader).map(Self::IsTaggedTuple),
-            InitYregsOp::CODE => InitYregsOp::decode_args(reader).map(Self::InitYregs),
+            TryOp::CODE => DecodeOperands::decode_operands(reader).map(Self::Try),
+            TryEndOp::CODE => DecodeOperands::decode_operands(reader).map(Self::TryEnd),
+            TryCaseOp::CODE => DecodeOperands::decode_operands(reader).map(Self::TryCase),
+            LineOp::CODE => DecodeOperands::decode_operands(reader).map(Self::Line),
+            IsTaggedTupleOp::CODE => {
+                DecodeOperands::decode_operands(reader).map(Self::IsTaggedTuple)
+            }
+            InitYregsOp::CODE => DecodeOperands::decode_operands(reader).map(Self::InitYregs),
             op => todo!("{op}"),
         }
     }

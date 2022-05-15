@@ -7,9 +7,13 @@ edition = "2021"
 
 [dependencies]
 beam_file = "0.3"
+beamop_derive = { path = "beamop_derive", version = "0.1.0" }
 byteorder = "1"
 thiserror = "1"
 
 [dev-dependencies]
 anyhow = "1"
 clap = { version = "3", features = ["derive"] }
+
+[workspace]
+members = ["beamop_derive"]
