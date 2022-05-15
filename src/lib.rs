@@ -1,9 +1,13 @@
 use beam_file::chunk::CodeChunk;
-use beamop_derive::DecodeOperands;
+use beamop_derive::{Decode, DecodeOperands};
 use byteorder::ReadBytesExt as _;
 use std::io::Read;
 
 pub const INSTRUCTION_SET_VERSION: u32 = 0;
+
+pub trait Decode: Sized {
+    fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError>;
+}
 
 pub trait DecodeOperands: Sized {
     fn decode_operands<R: Read>(reader: &mut R) -> Result<Self, DecodeError>;
@@ -22,6 +26,9 @@ pub enum ParseError {
 
     #[error("unknown compact term tag: {tag}")]
     UnknownCompactTermTag { tag: u8 },
+
+    #[error("unknown opcode: {opcode}")]
+    UnknownOpcode { opcode: u8 },
 
     #[error(transparent)]
     IoError(#[from] std::io::Error),
@@ -490,7 +497,7 @@ impl InitYregsOp {
     pub const CODE: u8 = 172;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Decode)]
 pub enum Op {
     Label(LabelOp),
     FuncInfo(FuncInfoOp),
@@ -513,39 +520,4 @@ pub enum Op {
     Line(LineOp),
     IsTaggedTuple(IsTaggedTupleOp),
     InitYregs(InitYregsOp),
-}
-
-impl Op {
-    pub fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        match reader.read_u8()? {
-            LabelOp::CODE => DecodeOperands::decode_operands(reader).map(Self::Label),
-            FuncInfoOp::CODE => DecodeOperands::decode_operands(reader).map(Self::FuncInfo),
-            CallOp::CODE => DecodeOperands::decode_operands(reader).map(Self::Call),
-            CallOnlyOp::CODE => DecodeOperands::decode_operands(reader).map(Self::CallOnly),
-            CallExtOp::CODE => DecodeOperands::decode_operands(reader).map(Self::CallExt),
-            AllocateOp::CODE => DecodeOperands::decode_operands(reader).map(Self::Allocate),
-            DeallocateOp::CODE => DecodeOperands::decode_operands(reader).map(Self::Deallocate),
-            ReturnOp::CODE => DecodeOperands::decode_operands(reader).map(Self::Return),
-            IsEqExactOp::CODE => DecodeOperands::decode_operands(reader).map(Self::IsEqExact),
-            IsNonemptyListOp::CODE => {
-                DecodeOperands::decode_operands(reader).map(Self::IsNonemptyList)
-            }
-            IsTupleOp::CODE => DecodeOperands::decode_operands(reader).map(Self::IsTuple),
-            TestArityOp::CODE => DecodeOperands::decode_operands(reader).map(Self::TestArity),
-            MoveOp::CODE => DecodeOperands::decode_operands(reader).map(Self::Move),
-            GetListOp::CODE => DecodeOperands::decode_operands(reader).map(Self::GetList),
-            GetTupleElementOp::CODE => {
-                DecodeOperands::decode_operands(reader).map(Self::GetTupleElement)
-            }
-            TryOp::CODE => DecodeOperands::decode_operands(reader).map(Self::Try),
-            TryEndOp::CODE => DecodeOperands::decode_operands(reader).map(Self::TryEnd),
-            TryCaseOp::CODE => DecodeOperands::decode_operands(reader).map(Self::TryCase),
-            LineOp::CODE => DecodeOperands::decode_operands(reader).map(Self::Line),
-            IsTaggedTupleOp::CODE => {
-                DecodeOperands::decode_operands(reader).map(Self::IsTaggedTuple)
-            }
-            InitYregsOp::CODE => DecodeOperands::decode_operands(reader).map(Self::InitYregs),
-            op => todo!("{op}"),
-        }
-    }
 }
