@@ -240,6 +240,18 @@ impl TryFrom<CompactTerm> for List {
     }
 }
 
+impl TryFrom<CompactTerm> for Vec<YRegister> {
+    type Error = DecodeError;
+
+    fn try_from(term: CompactTerm) -> Result<Self, Self::Error> {
+        let list: List = term.try_into()?;
+        list.elements
+            .into_iter()
+            .map(|x| x.try_into())
+            .collect::<Result<_, _>>()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Literal {
     pub index: usize,
@@ -276,6 +288,7 @@ pub struct List {
     pub elements: Vec<CompactTerm>,
 }
 
+// TODO: check https://blog.stenmans.org/theBeamBook/#_list_of_all_beam_instructions
 #[derive(Debug, Clone, DecodeOperands)]
 pub struct LabelOp {
     pub literal: Literal,
@@ -337,6 +350,16 @@ impl AllocateOp {
 }
 
 #[derive(Debug, Clone, DecodeOperands)]
+pub struct TestHeapOp {
+    pub heap_need: Literal,
+    pub live: Literal,
+}
+
+impl TestHeapOp {
+    pub const CODE: u8 = 16;
+}
+
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct DeallocateOp {
     pub n: Literal,
 }
@@ -361,6 +384,16 @@ pub struct IsEqExactOp {
 
 impl IsEqExactOp {
     pub const CODE: u8 = 43;
+}
+
+#[derive(Debug, Clone, DecodeOperands)]
+pub struct IsNilOp {
+    pub label: Label,
+    pub arg1: CompactTerm,
+}
+
+impl IsNilOp {
+    pub const CODE: u8 = 52;
 }
 
 #[derive(Debug, Clone, DecodeOperands)]
@@ -427,6 +460,17 @@ impl GetTupleElementOp {
 }
 
 #[derive(Debug, Clone, DecodeOperands)]
+pub struct PutListOp {
+    pub head: CompactTerm,
+    pub tail: CompactTerm,
+    pub destination: Register,
+}
+
+impl PutListOp {
+    pub const CODE: u8 = 69;
+}
+
+#[derive(Debug, Clone, DecodeOperands)]
 pub struct TryOp {
     pub register: YRegister,
     pub label: Label,
@@ -475,17 +519,11 @@ impl IsTaggedTupleOp {
     pub const CODE: u8 = 159;
 }
 
-// TODO: move
-impl TryFrom<CompactTerm> for Vec<YRegister> {
-    type Error = DecodeError;
+#[derive(Debug, Clone, DecodeOperands)]
+pub struct BuildStacktraceOp {}
 
-    fn try_from(term: CompactTerm) -> Result<Self, Self::Error> {
-        let list: List = term.try_into()?;
-        list.elements
-            .into_iter()
-            .map(|x| x.try_into())
-            .collect::<Result<_, _>>()
-    }
+impl BuildStacktraceOp {
+    pub const CODE: u8 = 160;
 }
 
 #[derive(Debug, Clone, DecodeOperands)]
@@ -499,25 +537,29 @@ impl InitYregsOp {
 
 #[derive(Debug, Clone, Decode)]
 pub enum Op {
-    Label(LabelOp),
-    FuncInfo(FuncInfoOp),
-    Call(CallOp),
-    CallOnly(CallOnlyOp),
-    CallExt(CallExtOp),
     Allocate(AllocateOp),
+    BuildStacktrace(BuildStacktraceOp),
+    Call(CallOp),
+    CallExt(CallExtOp),
+    CallOnly(CallOnlyOp),
     Deallocate(DeallocateOp),
-    Return(ReturnOp),
-    IsEqExact(IsEqExactOp),
-    IsNonemptyList(IsNonemptyListOp),
-    IsTuple(IsTupleOp),
-    TestArity(TestArityOp),
-    Move(MoveOp),
+    FuncInfo(FuncInfoOp),
     GetList(GetListOp),
     GetTupleElement(GetTupleElementOp),
-    Try(TryOp),
-    TryEnd(TryEndOp),
-    TryCase(TryCaseOp),
-    Line(LineOp),
-    IsTaggedTuple(IsTaggedTupleOp),
     InitYregs(InitYregsOp),
+    IsEqExact(IsEqExactOp),
+    IsNil(IsNilOp),
+    IsNonemptyList(IsNonemptyListOp),
+    IsTaggedTuple(IsTaggedTupleOp),
+    IsTuple(IsTupleOp),
+    Label(LabelOp),
+    Line(LineOp),
+    Move(MoveOp),
+    PutList(PutListOp),
+    Return(ReturnOp),
+    TestArity(TestArityOp),
+    TestHeap(TestHeapOp),
+    Try(TryOp),
+    TryCase(TryCaseOp),
+    TryEnd(TryEndOp),
 }
