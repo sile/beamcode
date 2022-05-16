@@ -19,6 +19,8 @@ pub trait Opcode {
     const CODE: u8;
 }
 
+const USIZE_BYTES: u32 = usize::BITS / 8;
+
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
     #[error("supported instruction set version is {INSTRUCTION_SET_VERSION}, but got {version}")]
@@ -35,6 +37,12 @@ pub enum ParseError {
 
     #[error("unknown opcode: {opcode}")]
     UnknownOpcode { opcode: u8 },
+
+    #[error("expected a usize value ({USIZE_BYTES} bytes), but got a {byte_size} bytes value")]
+    TooLargeUsizeValue { byte_size: usize },
+
+    #[error(transparent)]
+    ConvertTermError(#[from] crate::terms::ConvertTermError),
 
     #[error(transparent)]
     IoError(#[from] std::io::Error),
