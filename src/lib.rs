@@ -3,6 +3,8 @@ use beamop_derive::{Decode, DecodeOperands, Opcode};
 use byteorder::ReadBytesExt as _;
 use std::io::Read;
 
+pub mod terms;
+
 pub const INSTRUCTION_SET_VERSION: u32 = 0;
 
 pub trait Decode: Sized {
