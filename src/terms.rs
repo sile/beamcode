@@ -24,6 +24,9 @@ pub enum ConvertTermError {
 
     #[error("expected a list, but got {term:?}")]
     NotList { term: Term },
+
+    #[error("expected an extended literal, but got {term:?}")]
+    NotExtendedLiteral { term: Term },
 }
 
 // From beam_opcodes.hrl file.
@@ -44,6 +47,7 @@ pub enum Term {
     YRegister(YRegister),
     Label(Label),
     List(List),
+    ExtendedLiteral(ExtendedLiteral),
     // TODO: Integer (maybe a big-num)
     // TODO: Alloc List, etc
 }
@@ -79,9 +83,7 @@ impl Term {
             0b00110 => {
                 todo!("allocation list");
             }
-            0b01000 => {
-                todo!("literal");
-            }
+            0b01000 => ExtendedLiteral::decode(reader).map(Self::ExtendedLiteral),
             _ => Err(DecodeError::UnknownTermTag { tag }),
         }
     }
@@ -111,9 +113,10 @@ pub enum Source {
     YRegister(YRegister),
     Literal(Literal),
     Atom(Atom),
-    // Integer
+    // TODO: Integer
 }
 
+// TODO(?): s/Literal/Usize/
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Literal {
     pub value: usize,
@@ -134,6 +137,32 @@ impl TryFrom<Term> for Literal {
             Ok(t)
         } else {
             Err(ConvertTermError::NotLiteral { term })
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ExtendedLiteral {
+    pub value: usize,
+}
+
+impl ExtendedLiteral {
+    fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let literal: Literal = Term::decode(reader)?.try_into()?;
+        Ok(Self {
+            value: literal.value,
+        })
+    }
+}
+
+impl TryFrom<Term> for ExtendedLiteral {
+    type Error = ConvertTermError;
+
+    fn try_from(term: Term) -> Result<Self, Self::Error> {
+        if let Term::ExtendedLiteral(t) = term {
+            Ok(t)
+        } else {
+            Err(ConvertTermError::NotExtendedLiteral { term })
         }
     }
 }
