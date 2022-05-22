@@ -1,4 +1,4 @@
-use crate::terms::{Atom, Label, Literal, Register, Term, XRegister, YRegister};
+use crate::terms::{Atom, Label, List, Literal, Register, Term, XRegister, YRegister};
 use beam_file::chunk::CodeChunk;
 use beamop_derive::{Decode, DecodeOperands, Opcode};
 use byteorder::ReadBytesExt as _;
@@ -269,6 +269,26 @@ pub struct RaiseOp {
 }
 
 #[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(117)]
+pub struct BsGetInteger2Op {
+    pub arg1: Term,
+    pub arg2: Term,
+    pub arg3: Term,
+    pub arg4: Term,
+    pub arg5: Term,
+    pub arg6: Term,
+    pub arg7: Term,
+}
+
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(121)]
+pub struct BsTestTail2Op {
+    pub arg1: Term,
+    pub arg2: Term,
+    pub arg3: Term,
+}
+
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
 #[opcode(153)]
 pub struct LineOp {
     pub literal: Literal,
@@ -288,6 +308,30 @@ pub struct IsTaggedTupleOp {
 pub struct BuildStacktraceOp {}
 
 #[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(164)]
+pub struct PutTuple2Op {
+    pub destination: Register,
+    pub elements: List,
+}
+
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(166)]
+pub struct BsStartMatch3Op {
+    pub fail: Label,
+    pub bin: Term,
+    pub live: Literal,
+    pub destination: Register,
+}
+
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(167)]
+pub struct BsGetPositionOp {
+    pub context: Term,
+    pub destination: Register,
+    pub live: Literal,
+}
+
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
 #[opcode(172)]
 pub struct InitYregsOp {
     pub registers: Vec<YRegister>,
@@ -299,6 +343,10 @@ pub enum Op {
     AllocateHeap(AllocateHeapOp),
     AllocateHeapZero(AllocateHeapZeroOp),
     Badmatch(BadmatchOp),
+    BsGetInteger2(BsGetInteger2Op),
+    BsGetPosition(BsGetPositionOp),
+    BsStartMatch3(BsStartMatch3Op),
+    BsTestTailp(BsTestTail2Op),
     BuildStacktrace(BuildStacktraceOp),
     Call(CallOp),
     CallExt(CallExtOp),
@@ -319,6 +367,7 @@ pub enum Op {
     Line(LineOp),
     Move(MoveOp),
     PutList(PutListOp),
+    PutTuple2(PutTuple2Op),
     Raise(RaiseOp),
     Return(ReturnOp),
     TestArity(TestArityOp),
