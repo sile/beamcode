@@ -93,6 +93,10 @@ pub struct FuncInfoOp {
 }
 
 #[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(3)]
+pub struct IntCodeEndOp {}
+
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
 #[opcode(4)]
 pub struct CallOp {
     pub arity: Literal,
@@ -199,6 +203,20 @@ pub struct TestArityOp {
 }
 
 #[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(59)]
+pub struct SelectValOp {
+    pub arg: Term,
+    pub fail_label: Label,
+    pub destinations: List, // TODO: AssocList
+}
+
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(61)]
+pub struct JumpOp {
+    pub label: Label,
+}
+
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
 #[opcode(64)]
 pub struct MoveOp {
     pub src: Term,
@@ -281,8 +299,28 @@ pub struct BsGetInteger2Op {
 }
 
 #[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(119)]
+pub struct BsGetBinary2Op {
+    pub arg1: Term,
+    pub arg2: Term,
+    pub arg3: Term,
+    pub arg4: Term,
+    pub arg5: Term,
+    pub arg6: Term,
+    pub arg7: Term,
+}
+
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
 #[opcode(121)]
 pub struct BsTestTail2Op {
+    pub arg1: Term,
+    pub arg2: Term,
+    pub arg3: Term,
+}
+
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(131)]
+pub struct BsTestUnitOp {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -315,6 +353,14 @@ pub struct PutTuple2Op {
 }
 
 #[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(165)]
+pub struct BsGetTailOp {
+    pub context: Term,
+    pub destination: Register,
+    pub live: Literal,
+}
+
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
 #[opcode(166)]
 pub struct BsStartMatch3Op {
     pub fail: Label,
@@ -332,6 +378,13 @@ pub struct BsGetPositionOp {
 }
 
 #[derive(Debug, Clone, Opcode, DecodeOperands)]
+#[opcode(168)]
+pub struct BsSetPositionOp {
+    pub context: Term,
+    pub position: Term,
+}
+
+#[derive(Debug, Clone, Opcode, DecodeOperands)]
 #[opcode(172)]
 pub struct InitYregsOp {
     pub registers: Vec<YRegister>,
@@ -343,10 +396,14 @@ pub enum Op {
     AllocateHeap(AllocateHeapOp),
     AllocateHeapZero(AllocateHeapZeroOp),
     Badmatch(BadmatchOp),
+    BsGetBinary2(BsGetBinary2Op),
     BsGetInteger2(BsGetInteger2Op),
     BsGetPosition(BsGetPositionOp),
+    BsGetTail(BsGetTailOp),
+    BsSetPosition(BsSetPositionOp),
     BsStartMatch3(BsStartMatch3Op),
     BsTestTailp(BsTestTail2Op),
+    BsTestUnit(BsTestUnitOp),
     BuildStacktrace(BuildStacktraceOp),
     Call(CallOp),
     CallExt(CallExtOp),
@@ -358,11 +415,13 @@ pub enum Op {
     GetList(GetListOp),
     GetTupleElement(GetTupleElementOp),
     InitYregs(InitYregsOp),
+    IntCodeEnd(IntCodeEndOp),
     IsEqExact(IsEqExactOp),
     IsNil(IsNilOp),
     IsNonemptyList(IsNonemptyListOp),
     IsTaggedTuple(IsTaggedTupleOp),
     IsTuple(IsTupleOp),
+    Jump(JumpOp),
     Label(LabelOp),
     Line(LineOp),
     Move(MoveOp),
@@ -370,6 +429,7 @@ pub enum Op {
     PutTuple2(PutTuple2Op),
     Raise(RaiseOp),
     Return(ReturnOp),
+    SelectVal(SelectValOp),
     TestArity(TestArityOp),
     TestHeap(TestHeapOp),
     Try(TryOp),
