@@ -6,6 +6,24 @@ use std::io::Read;
 pub enum ConvertTermError {
     #[error("expected a literal, but got {term:?}")]
     NotLiteral { term: Term },
+
+    #[error("expected an atom, but got {term:?}")]
+    NotAtom { term: Term },
+
+    #[error("expected a label, but got {term:?}")]
+    NotLabel { term: Term },
+
+    #[error("expected a x-register, but got {term:?}")]
+    NotXRegister { term: Term },
+
+    #[error("expected a y-register, but got {term:?}")]
+    NotYRegister { term: Term },
+
+    #[error("expected a register, but got {term:?}")]
+    NotRegister { term: Term },
+
+    #[error("expected a list, but got {term:?}")]
+    NotList { term: Term },
 }
 
 // From beam_opcodes.hrl file.
@@ -31,19 +49,40 @@ pub enum Term {
 }
 
 impl Term {
-    // TODO: pub crate
-    pub fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+    pub(crate) fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
         let tag = reader.read_u8()?;
         match tag & 0b111 {
             TAG_U => Literal::decode(tag, reader).map(Self::Literal),
             TAG_I => todo!(),
-            TAG_A => todo!(),
-            TAG_X => todo!(),
-            TAG_Y => todo!(),
-            TAG_F => todo!(),
+            TAG_A => Atom::decode(tag, reader).map(Self::Atom),
+            TAG_X => XRegister::decode(tag, reader).map(Self::XRegister),
+            TAG_Y => YRegister::decode(tag, reader).map(Self::YRegister),
+            TAG_F => Label::decode(tag, reader).map(Self::Label),
             TAG_H => todo!(),
-            TAG_Z => todo!(),
+            TAG_Z => Self::decode_extended(tag, reader),
             _ => unreachable!(),
+        }
+    }
+
+    fn decode_extended<R: Read>(tag: u8, reader: &mut R) -> Result<Self, DecodeError> {
+        match tag >> 3 {
+            0b00010 => {
+                let size: Literal = Self::decode(reader)?.try_into()?;
+                (0..size.value)
+                    .map(|_| Self::decode(reader))
+                    .collect::<Result<_, _>>()
+                    .map(|elements| Self::List(List { elements }))
+            }
+            0b00100 => {
+                todo!("floating piont register");
+            }
+            0b00110 => {
+                todo!("allocation list");
+            }
+            0b01000 => {
+                todo!("literal");
+            }
+            _ => Err(DecodeError::UnknownTermTag { tag }),
         }
     }
 }
@@ -52,6 +91,18 @@ impl Term {
 pub enum Register {
     X(XRegister),
     Y(YRegister),
+}
+
+impl TryFrom<Term> for Register {
+    type Error = ConvertTermError;
+
+    fn try_from(term: Term) -> Result<Self, Self::Error> {
+        match term {
+            Term::XRegister(t) => Ok(Self::X(t)),
+            Term::YRegister(t) => Ok(Self::Y(t)),
+            _ => Err(ConvertTermError::NotRegister { term }),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -80,7 +131,7 @@ impl TryFrom<Term> for Literal {
 
     fn try_from(term: Term) -> Result<Self, Self::Error> {
         if let Term::Literal(t) = term {
-            Ok(Self { value: t.value })
+            Ok(t)
         } else {
             Err(ConvertTermError::NotLiteral { term })
         }
@@ -92,9 +143,47 @@ pub struct Atom {
     pub value: usize,
 }
 
+impl Atom {
+    fn decode<R: Read>(tag: u8, reader: &mut R) -> Result<Self, DecodeError> {
+        let value = decode_usize(tag, reader)?;
+        Ok(Self { value })
+    }
+}
+
+impl TryFrom<Term> for Atom {
+    type Error = ConvertTermError;
+
+    fn try_from(term: Term) -> Result<Self, Self::Error> {
+        if let Term::Atom(t) = term {
+            Ok(t)
+        } else {
+            Err(ConvertTermError::NotAtom { term })
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct XRegister {
     pub value: usize,
+}
+
+impl XRegister {
+    fn decode<R: Read>(tag: u8, reader: &mut R) -> Result<Self, DecodeError> {
+        let value = decode_usize(tag, reader)?;
+        Ok(Self { value })
+    }
+}
+
+impl TryFrom<Term> for XRegister {
+    type Error = ConvertTermError;
+
+    fn try_from(term: Term) -> Result<Self, Self::Error> {
+        if let Term::XRegister(t) = term {
+            Ok(t)
+        } else {
+            Err(ConvertTermError::NotXRegister { term })
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -102,14 +191,77 @@ pub struct YRegister {
     pub value: usize,
 }
 
+impl YRegister {
+    fn decode<R: Read>(tag: u8, reader: &mut R) -> Result<Self, DecodeError> {
+        let value = decode_usize(tag, reader)?;
+        Ok(Self { value })
+    }
+}
+
+impl TryFrom<Term> for YRegister {
+    type Error = ConvertTermError;
+
+    fn try_from(term: Term) -> Result<Self, Self::Error> {
+        if let Term::YRegister(t) = term {
+            Ok(t)
+        } else {
+            Err(ConvertTermError::NotYRegister { term })
+        }
+    }
+}
+
+impl TryFrom<Term> for Vec<YRegister> {
+    type Error = ConvertTermError;
+
+    fn try_from(term: Term) -> Result<Self, Self::Error> {
+        List::try_from(term).and_then(|list| {
+            list.elements
+                .into_iter()
+                .map(|x| YRegister::try_from(x))
+                .collect()
+        })
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Label {
     pub value: usize,
 }
 
+impl Label {
+    fn decode<R: Read>(tag: u8, reader: &mut R) -> Result<Self, DecodeError> {
+        let value = decode_usize(tag, reader)?;
+        Ok(Self { value })
+    }
+}
+
+impl TryFrom<Term> for Label {
+    type Error = ConvertTermError;
+
+    fn try_from(term: Term) -> Result<Self, Self::Error> {
+        if let Term::Label(t) = term {
+            Ok(t)
+        } else {
+            Err(ConvertTermError::NotLabel { term })
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct List {
     pub elements: Vec<Term>,
+}
+
+impl TryFrom<Term> for List {
+    type Error = ConvertTermError;
+
+    fn try_from(term: Term) -> Result<Self, Self::Error> {
+        if let Term::List(t) = term {
+            Ok(t)
+        } else {
+            Err(ConvertTermError::NotList { term })
+        }
+    }
 }
 
 fn decode_usize<R: Read>(tag: u8, reader: &mut R) -> Result<usize, DecodeError> {

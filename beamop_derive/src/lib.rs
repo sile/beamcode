@@ -79,7 +79,7 @@ fn generate_decode_operands_fun_body(data: &Data) -> TokenStream {
             Fields::Named(ref fields) => {
                 let decode_operands = fields.named.iter().map(|f| {
                     let name = &f.ident;
-                    quote_spanned! { f.span() => #name: crate::CompactTerm::decode(reader)?.try_into()? }
+                    quote_spanned! { f.span() => #name: crate::Term::decode(reader)?.try_into()? }
                 });
                 quote! {
                     Ok(Self{

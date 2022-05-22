@@ -1,3 +1,4 @@
+use crate::terms::{Atom, Label, Literal, Register, Term, XRegister, YRegister};
 use beam_file::chunk::CodeChunk;
 use beamop_derive::{Decode, DecodeOperands, Opcode};
 use byteorder::ReadBytesExt as _;
@@ -26,14 +27,8 @@ pub enum ParseError {
     #[error("supported instruction set version is {INSTRUCTION_SET_VERSION}, but got {version}")]
     UnsupportedInstructionSetVersion { version: u32 },
 
-    #[error("expected a {expected:?} arg, but got {actual:?}")]
-    UnexpectedArg {
-        expected: &'static str,
-        actual: CompactTerm,
-    },
-
     #[error("unknown compact term tag: {tag}")]
-    UnknownCompactTermTag { tag: u8 },
+    UnknownTermTag { tag: u8 },
 
     #[error("unknown opcode: {opcode}")]
     UnknownOpcode { opcode: u8 },
@@ -51,12 +46,6 @@ pub enum ParseError {
 impl From<std::convert::Infallible> for ParseError {
     fn from(_: std::convert::Infallible) -> Self {
         unreachable!()
-    }
-}
-
-impl ParseError {
-    fn unexpected_arg(expected: &'static str, actual: CompactTerm) -> Self {
-        Self::UnexpectedArg { expected, actual }
     }
 }
 
@@ -80,231 +69,12 @@ pub fn parse_code_chunk(chunk: &CodeChunk) -> Result<(), ParseError> {
     todo!()
 }
 
-// https://blog.stenmans.org/theBeamBook/#SEC-BeamModulesCTE
-pub fn decode_compact_term() {}
-
 pub type DecodeError = ParseError;
 
 #[derive(Debug, Clone)]
 pub struct ValueAndLabel {
-    pub value: CompactTerm,
+    pub value: Term,
     pub label: Label,
-}
-
-#[derive(Debug, Clone)]
-pub enum CompactTerm {
-    Literal(Literal),
-    Atom(Atom),
-    XRegister(XRegister),
-    YRegister(YRegister),
-    Label(Label),
-    List(List),
-    Todo,
-}
-
-impl CompactTerm {
-    pub fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let tag = reader.read_u8()?;
-        match tag & 0b111 {
-            0b000 => {
-                if (tag & 0b1_000) == 0 {
-                    let index = (tag >> 4) as usize;
-                    Ok(Self::Literal(Literal { index }))
-                } else if (tag & 0b10_000) == 0 {
-                    let v = reader.read_u8()? as usize;
-                    let index = (usize::from(tag & 0b111_00_000) << 3) | v;
-                    Ok(Self::Literal(Literal { index }))
-                } else {
-                    todo!();
-                }
-            }
-            0b001 => {
-                todo!();
-            }
-            0b010 => {
-                if (tag & 0b1000) != 0 {
-                    todo!();
-                }
-                let index = (tag >> 4) as usize;
-                Ok(Self::Atom(Atom { index }))
-            }
-            0b011 => {
-                if (tag & 0b1000) != 0 {
-                    todo!();
-                }
-                let index = (tag >> 4) as usize;
-                Ok(Self::XRegister(XRegister { index }))
-            }
-            0b100 => {
-                if (tag & 0b1000) != 0 {
-                    todo!();
-                }
-                let index = (tag >> 4) as usize;
-                Ok(Self::YRegister(YRegister { index }))
-            }
-            0b101 => {
-                if (tag & 0b1_000) == 0 {
-                    let index = (tag >> 4) as usize;
-                    Ok(Self::Label(Label { index }))
-                } else if (tag & 0b10_000) == 0 {
-                    let v = reader.read_u8()? as usize;
-                    let index = (usize::from(tag & 0b111_00_000) << 3) | v;
-                    Ok(Self::Label(Label { index }))
-                } else {
-                    todo!();
-                }
-            }
-            0b110 => {
-                todo!();
-            }
-            _ => match tag >> 3 {
-                0b00010 => {
-                    let size: Literal = Self::decode(reader)?.try_into()?;
-                    let mut elements = Vec::with_capacity(size.index);
-                    for _ in 0..size.index {
-                        elements.push(Self::decode(reader)?);
-                    }
-                    Ok(Self::List(List { elements }))
-                }
-                0b00100 => {
-                    todo!("floating point register");
-                }
-                0b00110 => {
-                    todo!("allocation list");
-                }
-                0b01000 => {
-                    todo!("literal");
-                }
-                _ => Err(DecodeError::UnknownCompactTermTag { tag }),
-            },
-        }
-    }
-}
-
-impl TryFrom<CompactTerm> for Literal {
-    type Error = DecodeError;
-
-    fn try_from(x: CompactTerm) -> Result<Self, Self::Error> {
-        match x {
-            CompactTerm::Literal(x) => Ok(x),
-            x => Err(DecodeError::unexpected_arg("literal", x)),
-        }
-    }
-}
-
-impl TryFrom<CompactTerm> for Atom {
-    type Error = DecodeError;
-
-    fn try_from(x: CompactTerm) -> Result<Self, Self::Error> {
-        match x {
-            CompactTerm::Atom(x) => Ok(x),
-            x => Err(DecodeError::unexpected_arg("atom", x)),
-        }
-    }
-}
-
-impl TryFrom<CompactTerm> for XRegister {
-    type Error = DecodeError;
-
-    fn try_from(x: CompactTerm) -> Result<Self, Self::Error> {
-        match x {
-            CompactTerm::XRegister(x) => Ok(x),
-            x => Err(DecodeError::unexpected_arg("x-register", x)),
-        }
-    }
-}
-
-impl TryFrom<CompactTerm> for YRegister {
-    type Error = DecodeError;
-
-    fn try_from(x: CompactTerm) -> Result<Self, Self::Error> {
-        match x {
-            CompactTerm::YRegister(x) => Ok(x),
-            x => Err(DecodeError::unexpected_arg("y-register", x)),
-        }
-    }
-}
-
-impl TryFrom<CompactTerm> for Register {
-    type Error = DecodeError;
-
-    fn try_from(x: CompactTerm) -> Result<Self, Self::Error> {
-        match x {
-            CompactTerm::XRegister(x) => Ok(Register::X(x)),
-            CompactTerm::YRegister(x) => Ok(Register::Y(x)),
-            x => Err(DecodeError::unexpected_arg("x-register or y-register", x)),
-        }
-    }
-}
-
-impl TryFrom<CompactTerm> for Label {
-    type Error = DecodeError;
-
-    fn try_from(x: CompactTerm) -> Result<Self, Self::Error> {
-        match x {
-            CompactTerm::Label(x) => Ok(x),
-            x => Err(DecodeError::unexpected_arg("label", x)),
-        }
-    }
-}
-
-impl TryFrom<CompactTerm> for List {
-    type Error = DecodeError;
-
-    fn try_from(x: CompactTerm) -> Result<Self, Self::Error> {
-        match x {
-            CompactTerm::List(x) => Ok(x),
-            x => Err(DecodeError::unexpected_arg("list", x)),
-        }
-    }
-}
-
-impl TryFrom<CompactTerm> for Vec<YRegister> {
-    type Error = DecodeError;
-
-    fn try_from(term: CompactTerm) -> Result<Self, Self::Error> {
-        let list: List = term.try_into()?;
-        list.elements
-            .into_iter()
-            .map(|x| x.try_into())
-            .collect::<Result<_, _>>()
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Literal {
-    pub index: usize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Atom {
-    pub index: usize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct XRegister {
-    pub index: usize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct YRegister {
-    pub index: usize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum Register {
-    X(XRegister),
-    Y(YRegister),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Label {
-    pub index: usize,
-}
-
-#[derive(Debug, Clone)]
-pub struct List {
-    pub elements: Vec<CompactTerm>,
 }
 
 // TODO: check https://blog.stenmans.org/theBeamBook/#_list_of_all_beam_instructions
@@ -395,50 +165,50 @@ pub struct ReturnOp {}
 #[opcode(43)]
 pub struct IsEqExactOp {
     pub label: Label,
-    pub arg1: CompactTerm,
-    pub arg2: CompactTerm,
+    pub arg1: Term,
+    pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, DecodeOperands)]
 #[opcode(52)]
 pub struct IsNilOp {
     pub label: Label,
-    pub arg1: CompactTerm,
+    pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, DecodeOperands)]
 #[opcode(56)]
 pub struct IsNonemptyListOp {
     pub label: Label,
-    pub arg1: CompactTerm,
+    pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, DecodeOperands)]
 #[opcode(57)]
 pub struct IsTupleOp {
     pub label: Label,
-    pub arg1: CompactTerm,
+    pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, DecodeOperands)]
 #[opcode(58)]
 pub struct TestArityOp {
     pub label: Label,
-    pub arg1: CompactTerm,
+    pub arg1: Term,
     pub arity: Literal,
 }
 
 #[derive(Debug, Clone, Opcode, DecodeOperands)]
 #[opcode(64)]
 pub struct MoveOp {
-    pub src: CompactTerm,
+    pub src: Term,
     pub dst: XRegister,
 }
 
 #[derive(Debug, Clone, Opcode, DecodeOperands)]
 #[opcode(65)]
 pub struct GetListOp {
-    pub source: CompactTerm,
+    pub source: Term,
     pub head: Register,
     pub tail: Register,
 }
@@ -454,15 +224,15 @@ pub struct GetTupleElementOp {
 #[derive(Debug, Clone, Opcode, DecodeOperands)]
 #[opcode(69)]
 pub struct PutListOp {
-    pub head: CompactTerm,
-    pub tail: CompactTerm,
+    pub head: Term,
+    pub tail: Term,
     pub destination: Register,
 }
 
 #[derive(Debug, Clone, Opcode, DecodeOperands)]
 #[opcode(72)]
 pub struct BadmatchOp {
-    pub arg1: CompactTerm, // TODO
+    pub arg1: Term, // TODO
 }
 
 #[derive(Debug, Clone, Opcode, DecodeOperands)]
@@ -494,8 +264,8 @@ pub struct TryCaseOp {
 #[derive(Debug, Clone, Opcode, DecodeOperands)]
 #[opcode(108)]
 pub struct RaiseOp {
-    pub stacktrace: CompactTerm,
-    pub exc_value: CompactTerm,
+    pub stacktrace: Term,
+    pub exc_value: Term,
 }
 
 #[derive(Debug, Clone, Opcode, DecodeOperands)]

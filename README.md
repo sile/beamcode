@@ -12,3 +12,4 @@ References
 - compact term: https://blog.stenmans.org/theBeamBook/#SEC-BeamModulesCTE
 - otp/lib/compiler/src/beam_opcodes.erl (generated file)
 - `beam_disasm:file/1`
+- `beam_asm:encode/2`
