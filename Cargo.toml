@@ -9,6 +9,7 @@ edition = "2021"
 beam_file = "0.3"
 beamop_derive = { path = "beamop_derive", version = "0.1.0" }
 byteorder = "1"
+num = "0.4"
 thiserror = "1"
 
 [dev-dependencies]

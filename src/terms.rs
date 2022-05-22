@@ -1,11 +1,15 @@
 use crate::{DecodeError, USIZE_BYTES};
 use byteorder::{BigEndian, ReadBytesExt};
+use num::BigInt;
 use std::io::Read;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConvertTermError {
     #[error("expected a literal, but got {term:?}")]
     NotLiteral { term: Term },
+
+    #[error("expected an integer, but got {term:?}")]
+    NotInteger { term: Term },
 
     #[error("expected an atom, but got {term:?}")]
     NotAtom { term: Term },
@@ -42,13 +46,13 @@ const TAG_Z: u8 = 7; // Extended
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Term {
     Literal(Literal),
+    Integer(Integer),
     Atom(Atom),
     XRegister(XRegister),
     YRegister(YRegister),
     Label(Label),
     List(List),
     ExtendedLiteral(ExtendedLiteral),
-    // TODO: Integer (maybe a big-num)
     // TODO: Alloc List, etc
 }
 
@@ -57,7 +61,7 @@ impl Term {
         let tag = reader.read_u8()?;
         match tag & 0b111 {
             TAG_U => Literal::decode(tag, reader).map(Self::Literal),
-            TAG_I => todo!(),
+            TAG_I => Integer::decode(tag, reader).map(Self::Integer),
             TAG_A => Atom::decode(tag, reader).map(Self::Atom),
             TAG_X => XRegister::decode(tag, reader).map(Self::XRegister),
             TAG_Y => YRegister::decode(tag, reader).map(Self::YRegister),
@@ -112,8 +116,8 @@ pub enum Source {
     XRegister(XRegister),
     YRegister(YRegister),
     Literal(Literal),
+    Integer(Integer),
     Atom(Atom),
-    // TODO: Integer
 }
 
 // TODO(?): s/Literal/Usize/
@@ -163,6 +167,30 @@ impl TryFrom<Term> for ExtendedLiteral {
             Ok(t)
         } else {
             Err(ConvertTermError::NotExtendedLiteral { term })
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Integer {
+    pub value: BigInt,
+}
+
+impl Integer {
+    fn decode<R: Read>(tag: u8, reader: &mut R) -> Result<Self, DecodeError> {
+        let value = decode_integer(tag, reader)?;
+        Ok(Self { value })
+    }
+}
+
+impl TryFrom<Term> for Integer {
+    type Error = ConvertTermError;
+
+    fn try_from(term: Term) -> Result<Self, Self::Error> {
+        if let Term::Integer(t) = term {
+            Ok(t)
+        } else {
+            Err(ConvertTermError::NotInteger { term })
         }
     }
 }
@@ -312,6 +340,25 @@ fn decode_usize<R: Read>(tag: u8, reader: &mut R) -> Result<usize, DecodeError> 
     }
 }
 
+fn decode_integer<R: Read>(tag: u8, reader: &mut R) -> Result<BigInt, DecodeError> {
+    if (tag & 0b1_000) == 0 {
+        Ok(BigInt::from(tag >> 4))
+    } else if (tag & 0b10_000) == 0 {
+        let v = u64::from(reader.read_u8()?);
+        Ok(BigInt::from((u64::from(tag) & 0b111_00_000) << 3 | v))
+    } else if (tag >> 5) != 0b111 {
+        let byte_size = usize::from(tag >> 5) + 2;
+        let mut buf = vec![0; byte_size];
+        reader.read_exact(&mut buf)?;
+        Ok(BigInt::from_signed_bytes_be(&buf))
+    } else {
+        let byte_size = Literal::try_from(Term::decode(reader)?)?.value;
+        let mut buf = vec![0; byte_size];
+        reader.read_exact(&mut buf)?;
+        Ok(BigInt::from_signed_bytes_be(&buf))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -339,5 +386,24 @@ mod tests {
             decode_usize(input[0], &mut &input[1..]),
             Err(DecodeError::TooLargeUsizeValue { .. })
         ));
+    }
+
+    #[test]
+    fn decode_integer_works() {
+        let data: &[(&[u8], i64)] = &[
+            (&[0], 0),
+            (&[16], 1),
+            (&[8, 20], 20),
+            (&[40, 144], 400),
+            (&[24, 87, 28], 22300),
+            (&[56, 15, 18, 6], 987654),
+            (&[24, 255, 255], -1),
+            (&[24, 254, 189], -323),
+            (&[88, 248, 164, 147, 83], -123432109),
+        ];
+        for (input, expected) in data {
+            let decoded = decode_integer(input[0], &mut &input[1..]).expect("decode failure");
+            assert_eq!(decoded, BigInt::from(*expected));
+        }
     }
 }
