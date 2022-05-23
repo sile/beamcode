@@ -10,7 +10,9 @@ fn main() -> anyhow::Result<()> {
     let beam = beam_file::StandardBeamFile::from_file(&args.beam_file_path)?;
     for chunk in beam.chunks {
         if let beam_file::chunk::StandardChunk::Code(chunk) = chunk {
-            beamop::parse_code_chunk(&chunk)?;
+            for op in beamop::parse_code_chunk(&chunk)? {
+                println!("{:?}", op);
+            }
             return Ok(());
         }
     }

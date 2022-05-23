@@ -49,24 +49,20 @@ impl From<std::convert::Infallible> for ParseError {
     }
 }
 
-pub fn parse_code_chunk(chunk: &CodeChunk) -> Result<(), ParseError> {
+// TODO: s/CodeChunk/impl Read/
+pub fn parse_code_chunk(chunk: &CodeChunk) -> Result<Vec<Op>, ParseError> {
     if chunk.version != INSTRUCTION_SET_VERSION {
         return Err(ParseError::UnsupportedInstructionSetVersion {
             version: chunk.version,
         });
     }
 
-    dbg!(chunk.info_size);
-    dbg!(chunk.opcode_max);
-    dbg!(chunk.label_count);
-    dbg!(chunk.function_count);
-    dbg!(chunk.bytecode.len());
+    let mut ops = Vec::new();
     let mut reader = &mut &chunk.bytecode[..];
     while !reader.is_empty() {
-        let op = Op::decode(&mut reader)?;
-        dbg!(op);
+        ops.push(Op::decode(&mut reader)?);
     }
-    todo!()
+    Ok(ops)
 }
 
 pub type DecodeError = ParseError;
