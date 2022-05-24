@@ -4,14 +4,18 @@ use beamop_derive::{Decode, DecodeOperands, Opcode};
 use byteorder::ReadBytesExt as _;
 use std::io::Read;
 
+// TODO: s/terms/term/
 pub mod terms;
 
-pub const INSTRUCTION_SET_VERSION: u32 = 0;
+// TODO: pub mod op;
+
+const INSTRUCTION_SET_VERSION: u32 = 0;
 
 pub trait Decode: Sized {
     fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError>;
 }
 
+// TODO: Remove this and use `Decode` instead.
 pub trait DecodeOperands: Sized {
     fn decode_operands<R: Read>(reader: &mut R) -> Result<Self, DecodeError>;
 }
@@ -66,12 +70,6 @@ pub fn parse_code_chunk(chunk: &CodeChunk) -> Result<Vec<Op>, ParseError> {
 }
 
 pub type DecodeError = ParseError;
-
-#[derive(Debug, Clone)]
-pub struct ValueAndLabel {
-    pub value: Term,
-    pub label: Label,
-}
 
 // TODO: check https://blog.stenmans.org/theBeamBook/#_list_of_all_beam_instructions
 #[derive(Debug, Clone, Opcode, DecodeOperands)]
