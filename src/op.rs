@@ -1,4 +1,4 @@
-use crate::terms::{Atom, Label, List, Literal, Register, Term, XRegister, YRegister};
+use crate::term::{Atom, Label, List, Literal, Register, Term, XRegister, YRegister};
 use crate::{Decode, Encode, Opcode};
 
 #[derive(Debug, Clone, Decode)]

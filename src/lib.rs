@@ -1,11 +1,10 @@
 use crate::op::Op;
-use crate::terms::Term;
+use crate::term::Term;
 use beamop_derive::{Decode, Encode, Opcode};
 use std::io::{Read, Write};
 
-// TODO: s/terms/term/
 pub mod op;
-pub mod terms;
+pub mod term;
 
 pub trait Opcode {
     const CODE: u8;
@@ -33,7 +32,7 @@ pub enum DecodeError {
     TooLargeUsizeValue { byte_size: usize },
 
     #[error(transparent)]
-    ConvertTermError(#[from] crate::terms::ConvertTermError),
+    ConvertTermError(#[from] crate::term::ConvertTermError),
 
     #[error(transparent)]
     IoError(#[from] std::io::Error),
