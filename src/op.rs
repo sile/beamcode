@@ -1,5 +1,5 @@
 use crate::terms::{Atom, Label, List, Literal, Register, Term, XRegister, YRegister};
-use crate::{Decode, Opcode};
+use crate::{Decode, Encode, Opcode};
 
 #[derive(Debug, Clone, Decode)]
 pub enum Op {

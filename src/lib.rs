@@ -1,7 +1,7 @@
 use crate::op::Op;
 use crate::terms::Term;
-use beamop_derive::{Decode, Opcode};
-use std::io::Read;
+use beamop_derive::{Decode, Encode, Opcode};
+use std::io::{Read, Write};
 
 // TODO: s/terms/term/
 pub mod op;
@@ -13,6 +13,10 @@ pub trait Opcode {
 
 pub trait Decode: Sized {
     fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError>;
+}
+
+pub trait Encode {
+    fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError>;
 }
 
 const USIZE_BYTES: u32 = usize::BITS / 8;
@@ -41,6 +45,12 @@ impl From<std::convert::Infallible> for DecodeError {
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum EncodeError {
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+}
+
 pub fn decode_ops(bytecode: &[u8]) -> Result<Vec<Op>, DecodeError> {
     let mut reader = bytecode;
     let mut ops = Vec::new();
@@ -48,4 +58,8 @@ pub fn decode_ops(bytecode: &[u8]) -> Result<Vec<Op>, DecodeError> {
         ops.push(Op::decode(&mut reader)?);
     }
     Ok(ops)
+}
+
+pub fn encode_ops(ops: &[Op]) -> Result<Vec<u8>, EncodeError> {
+    todo!()
 }

@@ -82,3 +82,53 @@ fn generate_decode_fun_body(data: &Data) -> TokenStream {
         _ => unimplemented!(),
     }
 }
+
+#[proc_macro_derive(Encode)]
+pub fn derive_encode_trait(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = input.ident;
+    let encode = generate_encode_fun_body(&input.data);
+    let expanded = quote! {
+        impl crate::Encode for #name {
+            fn encode<W: std::io::Write>(&self, writer: &mut W) -> Result<(), crate::EncodeError> {
+                #encode
+            }
+        }
+    };
+    proc_macro::TokenStream::from(expanded)
+}
+
+fn generate_encode_fun_body(data: &Data) -> TokenStream {
+    match *data {
+        Data::Enum(ref data) => {
+            let arms = data.variants.iter().map(|variant| {
+                let name = &variant.ident;
+                if let Fields::Unnamed(fields) = &variant.fields {
+                    assert_eq!(fields.unnamed.len(), 1);
+                } else {
+                    unimplemented!();
+                }
+                quote_spanned! { variant.span() => Self::#name(x) => x.encode(writer), }
+            });
+            quote! {
+                match self {
+                    #(#arms)*
+                }
+            }
+        }
+        Data::Struct(ref data) => match data.fields {
+            Fields::Named(ref fields) => {
+                let encode = fields.named.iter().map(|f| {
+                    let name = &f.ident;
+                    quote_spanned! { f.span() => self.#name.encode(writer)? }
+                });
+                quote! {
+                    writer.write_all(&[Self::CODE])?;
+                    #(#encode ;)*
+                }
+            }
+            _ => unimplemented!(),
+        },
+        _ => unimplemented!(),
+    }
+}
