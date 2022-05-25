@@ -47,6 +47,9 @@ fn generate_decode_fun_body(data: &Data) -> TokenStream {
                 quote_spanned! { variant.span() => #op::CODE => crate::Decode::decode(reader).map(Self::#name), }
             });
             quote! {
+                use byteorder::ReadBytesExt as _;
+                use std::io::Read as _;
+
                 let opcode = reader.read_u8()?;
                 let opcode_reader = [opcode];
                 let reader = &mut opcode_reader.chain(reader);
@@ -63,6 +66,8 @@ fn generate_decode_fun_body(data: &Data) -> TokenStream {
                     quote_spanned! { f.span() => #name: crate::Term::decode(reader)?.try_into()? }
                 });
                 quote! {
+                    use byteorder::ReadBytesExt as _;
+
                     let opcode = reader.read_u8()?;
                     if opcode != Self::CODE {
                         return Err(crate::DecodeError::UnknownOpcode{ opcode });
