@@ -1,7 +1,7 @@
-use crate::{DecodeError, USIZE_BYTES};
+use crate::{Decode, DecodeError, Encode, EncodeError, USIZE_BYTES};
 use byteorder::{BigEndian, ReadBytesExt};
 use num::BigInt;
-use std::io::Read;
+use std::io::{Read, Write};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConvertTermError {
@@ -43,7 +43,7 @@ const TAG_F: u8 = 5; // Label
 const TAG_H: u8 = 6; // Character
 const TAG_Z: u8 = 7; // Extended
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Encode)]
 pub enum Term {
     Literal(Literal),
     Integer(Integer),
@@ -57,21 +57,6 @@ pub enum Term {
 }
 
 impl Term {
-    pub(crate) fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let tag = reader.read_u8()?;
-        match tag & 0b111 {
-            TAG_U => Literal::decode(tag, reader).map(Self::Literal),
-            TAG_I => Integer::decode(tag, reader).map(Self::Integer),
-            TAG_A => Atom::decode(tag, reader).map(Self::Atom),
-            TAG_X => XRegister::decode(tag, reader).map(Self::XRegister),
-            TAG_Y => YRegister::decode(tag, reader).map(Self::YRegister),
-            TAG_F => Label::decode(tag, reader).map(Self::Label),
-            TAG_H => todo!(),
-            TAG_Z => Self::decode_extended(tag, reader),
-            _ => unreachable!(),
-        }
-    }
-
     fn decode_extended<R: Read>(tag: u8, reader: &mut R) -> Result<Self, DecodeError> {
         match tag >> 3 {
             0b00010 => {
@@ -93,7 +78,24 @@ impl Term {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+impl Decode for Term {
+    fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let tag = reader.read_u8()?;
+        match tag & 0b111 {
+            TAG_U => Literal::decode(tag, reader).map(Self::Literal),
+            TAG_I => Integer::decode(tag, reader).map(Self::Integer),
+            TAG_A => Atom::decode(tag, reader).map(Self::Atom),
+            TAG_X => XRegister::decode(tag, reader).map(Self::XRegister),
+            TAG_Y => YRegister::decode(tag, reader).map(Self::YRegister),
+            TAG_F => Label::decode(tag, reader).map(Self::Label),
+            TAG_H => todo!(),
+            TAG_Z => Self::decode_extended(tag, reader),
+            _ => unreachable!(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Encode)]
 pub enum Register {
     X(XRegister),
     Y(YRegister),
@@ -120,6 +122,7 @@ pub enum Source {
     Atom(Atom),
 }
 
+// TODO: impl Decode
 // TODO(?): s/Literal/Usize/
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Literal {
@@ -130,6 +133,12 @@ impl Literal {
     fn decode<R: Read>(tag: u8, reader: &mut R) -> Result<Self, DecodeError> {
         let value = decode_usize(tag, reader)?;
         Ok(Self { value })
+    }
+}
+
+impl Encode for Literal {
+    fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
+        todo!()
     }
 }
 
@@ -159,6 +168,12 @@ impl ExtendedLiteral {
     }
 }
 
+impl Encode for ExtendedLiteral {
+    fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
+        todo!()
+    }
+}
+
 impl TryFrom<Term> for ExtendedLiteral {
     type Error = ConvertTermError;
 
@@ -180,6 +195,12 @@ impl Integer {
     fn decode<R: Read>(tag: u8, reader: &mut R) -> Result<Self, DecodeError> {
         let value = decode_integer(tag, reader)?;
         Ok(Self { value })
+    }
+}
+
+impl Encode for Integer {
+    fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
+        todo!()
     }
 }
 
@@ -207,6 +228,12 @@ impl Atom {
     }
 }
 
+impl Encode for Atom {
+    fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
+        todo!()
+    }
+}
+
 impl TryFrom<Term> for Atom {
     type Error = ConvertTermError;
 
@@ -228,6 +255,12 @@ impl XRegister {
     fn decode<R: Read>(tag: u8, reader: &mut R) -> Result<Self, DecodeError> {
         let value = decode_usize(tag, reader)?;
         Ok(Self { value })
+    }
+}
+
+impl Encode for XRegister {
+    fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
+        todo!()
     }
 }
 
@@ -255,6 +288,12 @@ impl YRegister {
     }
 }
 
+impl Encode for YRegister {
+    fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
+        todo!()
+    }
+}
+
 impl TryFrom<Term> for YRegister {
     type Error = ConvertTermError;
 
@@ -264,6 +303,12 @@ impl TryFrom<Term> for YRegister {
         } else {
             Err(ConvertTermError::NotYRegister { term })
         }
+    }
+}
+
+impl Encode for Vec<YRegister> {
+    fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
+        todo!()
     }
 }
 
@@ -292,6 +337,12 @@ impl Label {
     }
 }
 
+impl Encode for Label {
+    fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
+        todo!()
+    }
+}
+
 impl TryFrom<Term> for Label {
     type Error = ConvertTermError;
 
@@ -307,6 +358,12 @@ impl TryFrom<Term> for Label {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct List {
     pub elements: Vec<Term>,
+}
+
+impl Encode for List {
+    fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
+        todo!()
+    }
 }
 
 impl TryFrom<Term> for List {

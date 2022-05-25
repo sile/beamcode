@@ -124,7 +124,8 @@ fn generate_encode_fun_body(data: &Data) -> TokenStream {
                 });
                 quote! {
                     writer.write_all(&[Self::CODE])?;
-                    #(#encode ;)*
+                    #(#encode ;)*;
+                    Ok(())
                 }
             }
             _ => unimplemented!(),
