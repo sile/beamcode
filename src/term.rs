@@ -1,5 +1,5 @@
 use crate::{Decode, DecodeError, Encode, EncodeError, USIZE_BYTES};
-use byteorder::{BigEndian, ReadBytesExt};
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use num::BigInt;
 use std::io::{Read, Write};
 
@@ -138,7 +138,7 @@ impl Literal {
 
 impl Encode for Literal {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        todo!()
+        encode_usize(TAG_U, self.value, writer)
     }
 }
 
@@ -230,7 +230,7 @@ impl Atom {
 
 impl Encode for Atom {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        todo!()
+        encode_usize(TAG_A, self.value, writer)
     }
 }
 
@@ -260,7 +260,7 @@ impl XRegister {
 
 impl Encode for XRegister {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        todo!()
+        encode_usize(TAG_X, self.value, writer)
     }
 }
 
@@ -290,7 +290,7 @@ impl YRegister {
 
 impl Encode for YRegister {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        todo!()
+        encode_usize(TAG_X, self.value, writer)
     }
 }
 
@@ -339,7 +339,7 @@ impl Label {
 
 impl Encode for Label {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        todo!()
+        encode_usize(TAG_F, self.value, writer)
     }
 }
 
@@ -395,6 +395,35 @@ fn decode_usize<R: Read>(tag: u8, reader: &mut R) -> Result<usize, DecodeError> 
         let byte_size = Literal::try_from(Term::decode(reader)?)?.value;
         Err(DecodeError::TooLargeUsizeValue { byte_size })
     }
+}
+
+fn encode_usize<W: Write>(tag: u8, value: usize, writer: &mut W) -> Result<(), EncodeError> {
+    if value < 16 {
+        writer.write_u8((value << 4) as u8 | tag)?;
+    } else if value < 0x800 {
+        writer.write_u8(((value >> 3) as u8 & 0b1110_0000) | tag | 0b000_1000)?;
+        writer.write_u8((value & 0xFF) as u8)?;
+    } else {
+        let bytes = value.to_be_bytes();
+        let mut n = bytes.len();
+        for (i, b) in bytes.iter().copied().enumerate() {
+            if b != 0 {
+                if (b & 0b1000_0000) != 0 {
+                    n += 1;
+                }
+                writer.write_u8(((n - 2) << 5) as u8 | 0b0001_1000 | tag)?;
+                if (b & 0b1000_0000) != 0 {
+                    writer.write_u8(0)?;
+                }
+                for &b in &bytes[i..] {
+                    writer.write_u8(b)?;
+                }
+                break;
+            }
+            n -= 1;
+        }
+    }
+    Ok(())
 }
 
 fn decode_integer<R: Read>(tag: u8, reader: &mut R) -> Result<BigInt, DecodeError> {
