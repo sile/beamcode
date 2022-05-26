@@ -60,6 +60,7 @@ impl Term {
     fn decode_extended<R: Read>(tag: u8, reader: &mut R) -> Result<Self, DecodeError> {
         match tag >> 3 {
             0b00010 => {
+                // TODO: List::decode
                 let size: Literal = Self::decode(reader)?.try_into()?;
                 (0..size.value)
                     .map(|_| Self::decode(reader))
@@ -170,7 +171,9 @@ impl ExtendedLiteral {
 
 impl Encode for ExtendedLiteral {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        todo!()
+        writer.write_u8(TAG_Z | 0b0000_1000)?;
+        let literal = Literal { value: self.value };
+        literal.encode(writer)
     }
 }
 
@@ -200,7 +203,7 @@ impl Integer {
 
 impl Encode for Integer {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        todo!()
+        encode_integer(TAG_I, &self.value, writer)
     }
 }
 
@@ -308,7 +311,10 @@ impl TryFrom<Term> for YRegister {
 
 impl Encode for Vec<YRegister> {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        todo!()
+        let list = List {
+            elements: self.iter().copied().map(Term::YRegister).collect(),
+        };
+        list.encode(writer)
     }
 }
 
@@ -362,7 +368,15 @@ pub struct List {
 
 impl Encode for List {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        todo!()
+        writer.write_u8(TAG_Z | 0b0000_00010)?;
+        let size = Literal {
+            value: self.elements.len(),
+        };
+        size.encode(writer)?;
+        for x in &self.elements {
+            x.encode(writer)?;
+        }
+        Ok(())
     }
 }
 
@@ -405,23 +419,7 @@ fn encode_usize<W: Write>(tag: u8, value: usize, writer: &mut W) -> Result<(), E
         writer.write_u8((value & 0xFF) as u8)?;
     } else {
         let bytes = value.to_be_bytes();
-        let mut n = bytes.len();
-        for (i, b) in bytes.iter().copied().enumerate() {
-            if b != 0 {
-                if (b & 0b1000_0000) != 0 {
-                    n += 1;
-                }
-                writer.write_u8(((n - 2) << 5) as u8 | 0b0001_1000 | tag)?;
-                if (b & 0b1000_0000) != 0 {
-                    writer.write_u8(0)?;
-                }
-                for &b in &bytes[i..] {
-                    writer.write_u8(b)?;
-                }
-                break;
-            }
-            n -= 1;
-        }
+        encode_num_bytes(tag, &bytes, writer)?;
     }
     Ok(())
 }
@@ -443,6 +441,50 @@ fn decode_integer<R: Read>(tag: u8, reader: &mut R) -> Result<BigInt, DecodeErro
         reader.read_exact(&mut buf)?;
         Ok(BigInt::from_signed_bytes_be(&buf))
     }
+}
+
+fn encode_integer<W: Write>(tag: u8, value: &BigInt, writer: &mut W) -> Result<(), EncodeError> {
+    if let Ok(v) = usize::try_from(value.clone()) {
+        encode_usize(tag, v, writer)
+    } else if let Ok(v) = i16::try_from(value.clone()) {
+        let bytes = v.to_be_bytes();
+        encode_num_bytes(tag, &bytes, writer)
+    } else {
+        let bytes = value.to_signed_bytes_be();
+        encode_num_bytes(tag, &bytes, writer)
+    }
+}
+
+fn encode_num_bytes<W: Write>(tag: u8, bytes: &[u8], writer: &mut W) -> Result<(), EncodeError> {
+    assert!(bytes.len() >= 2); // TODO: return Err(_)
+
+    if bytes.len() <= 8 {
+        let mut n = bytes.len();
+        for (i, b) in bytes.iter().copied().enumerate() {
+            if b != 0 {
+                if (b & 0b1000_0000) != 0 {
+                    n += 1;
+                }
+                writer.write_u8(((n - 2) << 5) as u8 | 0b0001_1000 | tag)?;
+                if (b & 0b1000_0000) != 0 {
+                    writer.write_u8(0)?;
+                }
+                for &b in &bytes[i..] {
+                    writer.write_u8(b)?;
+                }
+                break;
+            }
+            n -= 1;
+        }
+    } else {
+        writer.write_u8(tag | 0b1111_1000)?;
+        let size = Literal {
+            value: bytes.len() - 8,
+        };
+        size.encode(writer)?;
+        writer.write_all(bytes)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
