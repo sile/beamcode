@@ -61,9 +61,8 @@ pub fn decode_ops(bytecode: &[u8]) -> Result<Vec<Op>, DecodeError> {
 
 pub fn encode_ops(ops: &[Op]) -> Result<Vec<u8>, EncodeError> {
     let mut buf = Vec::new();
-    let mut writer = &mut buf[..];
     for op in ops {
-        op.encode(&mut writer)?;
+        op.encode(&mut buf)?;
     }
     Ok(buf)
 }
