@@ -456,7 +456,7 @@ fn encode_integer<W: Write>(tag: u8, value: &BigInt, writer: &mut W) -> Result<(
 }
 
 fn encode_num_bytes<W: Write>(tag: u8, bytes: &[u8], writer: &mut W) -> Result<(), EncodeError> {
-    assert!(bytes.len() >= 2); // TODO: return Err(_)
+    assert!(bytes.len() >= 2, "bug");
 
     if bytes.len() <= 8 {
         let mut n = bytes.len();
