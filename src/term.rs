@@ -171,7 +171,7 @@ impl ExtendedLiteral {
 
 impl Encode for ExtendedLiteral {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        writer.write_u8(TAG_Z | 0b0000_1000)?;
+        writer.write_u8(TAG_Z | 0b0100_0000)?;
         let literal = Literal { value: self.value };
         literal.encode(writer)
     }
@@ -293,7 +293,7 @@ impl YRegister {
 
 impl Encode for YRegister {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        encode_usize(TAG_X, self.value, writer)
+        encode_usize(TAG_Y, self.value, writer)
     }
 }
 
@@ -368,7 +368,7 @@ pub struct List {
 
 impl Encode for List {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        writer.write_u8(TAG_Z | 0b0000_00010)?;
+        writer.write_u8(TAG_Z | 0b0001_0000)?;
         let size = Literal {
             value: self.elements.len(),
         };

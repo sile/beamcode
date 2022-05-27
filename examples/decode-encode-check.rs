@@ -1,3 +1,5 @@
+use beamop::op::Op;
+use beamop::Decode;
 use clap::Parser;
 
 #[derive(Parser)]
@@ -11,8 +13,16 @@ fn main() -> anyhow::Result<()> {
     for chunk in beam.chunks {
         if let beam_file::chunk::StandardChunk::Code(chunk) = chunk {
             let ops = beamop::decode_ops(&chunk.bytecode)?;
-            let encoded = beamop::encode_ops(&ops)?;
-            assert_eq!(encoded, chunk.bytecode);
+            let mut reader = &chunk.bytecode[..];
+            for (i, op) in ops.into_iter().enumerate() {
+                let start = chunk.bytecode.len() - reader.len();
+                let _ = Op::decode(&mut reader)?;
+                let end = chunk.bytecode.len() - reader.len();
+                let expected = &chunk.bytecode[start..end];
+
+                let encoded = beamop::encode_ops(&[op.clone()])?;
+                assert_eq!(encoded, expected, "[{}] {:?}", i, op);
+            }
             return Ok(());
         }
     }
