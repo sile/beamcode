@@ -2,6 +2,7 @@ use crate::op::Op;
 use crate::term::TermKind;
 use beamop_derive::{Decode, Encode, Opcode};
 use byteorder::ReadBytesExt as _;
+use num::BigInt;
 use std::io::{Read, Write};
 
 pub mod op;
@@ -24,8 +25,6 @@ pub trait Encode {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError>;
 }
 
-const USIZE_BYTES: u32 = usize::BITS / 8;
-
 #[derive(Debug, thiserror::Error)]
 pub enum DecodeError {
     #[error("unknown term tag: {tag}")]
@@ -43,8 +42,11 @@ pub enum DecodeError {
     #[error("unknown opcode: {opcode}")]
     UnknownOpcode { opcode: u8 },
 
-    #[error("expected a usize value ({USIZE_BYTES} bytes), but got a {byte_size} bytes value")]
-    TooLargeUsizeValue { byte_size: usize },
+    #[error("invalid Unicode codepoint: {value}")]
+    InvalidUnicodeCodepoint { value: u32 },
+
+    #[error(transparent)]
+    NumError(#[from] num::bigint::TryFromBigIntError<BigInt>),
 
     #[error(transparent)]
     IoError(#[from] std::io::Error),

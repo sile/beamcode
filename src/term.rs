@@ -1,5 +1,5 @@
-use crate::{Decode, DecodeError, Encode, EncodeError, USIZE_BYTES};
-use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use crate::{Decode, DecodeError, Encode, EncodeError};
+use byteorder::{ReadBytesExt, WriteBytesExt};
 use num::BigInt;
 use std::io::{Read, Write};
 
@@ -80,6 +80,7 @@ pub enum Term {
     XRegister(XRegister),
     YRegister(YRegister),
     Label(Label),
+    Character(char),
     List(List),
     FloatingPointRegister(FloatingPointRegister),
     AllocationList(AllocationList),
@@ -96,7 +97,7 @@ impl Decode for Term {
             TermKind::XRegister => Decode::decode_with_tag(reader, tag).map(Self::XRegister),
             TermKind::YRegister => Decode::decode_with_tag(reader, tag).map(Self::YRegister),
             TermKind::Label => Decode::decode_with_tag(reader, tag).map(Self::Label),
-            TermKind::Character => todo!(),
+            TermKind::Character => Decode::decode_with_tag(reader, tag).map(Self::Character),
             TermKind::List => Decode::decode_with_tag(reader, tag).map(Self::List),
             TermKind::FloatingPointRegister => {
                 Decode::decode_with_tag(reader, tag).map(Self::FloatingPointRegister)
@@ -287,14 +288,32 @@ impl Decode for Register {
 impl Decode for usize {
     fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         TermKind::from_tag(tag).expect(&[TermKind::Usize])?;
-        let value = decode_usize(tag, reader)?;
+        let value = usize::try_from(decode_integer(tag, reader)?)?;
         Ok(value)
     }
 }
 
 impl Encode for usize {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        encode_usize(TermKind::Usize.tag(), *self, writer)
+        encode_integer(TermKind::Usize.tag(), &BigInt::from(*self), writer)
+    }
+}
+
+impl Decode for char {
+    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
+        TermKind::from_tag(tag).expect(&[TermKind::Character])?;
+        let value = u32::try_from(decode_integer(tag, reader)?)?;
+        char::from_u32(value).ok_or_else(|| DecodeError::InvalidUnicodeCodepoint { value })
+    }
+}
+
+impl Encode for char {
+    fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
+        encode_integer(
+            TermKind::Character.tag(),
+            &BigInt::from(u32::from(*self)),
+            writer,
+        )
     }
 }
 
@@ -341,15 +360,14 @@ pub struct Atom {
 impl Decode for Atom {
     fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         TermKind::from_tag(tag).expect(&[TermKind::Atom])?;
-
-        let value = decode_usize(tag, reader)?;
+        let value = usize::try_from(decode_integer(tag, reader)?)?;
         Ok(Self { value })
     }
 }
 
 impl Encode for Atom {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        encode_usize(TermKind::Atom.tag(), self.value, writer)
+        encode_integer(TermKind::Atom.tag(), &BigInt::from(self.value), writer)
     }
 }
 
@@ -362,15 +380,14 @@ pub struct XRegister {
 impl Decode for XRegister {
     fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         TermKind::from_tag(tag).expect(&[TermKind::XRegister])?;
-
-        let value = decode_usize(tag, reader)?;
+        let value = usize::try_from(decode_integer(tag, reader)?)?;
         Ok(Self { value, ty: None })
     }
 }
 
 impl Encode for XRegister {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        encode_usize(TermKind::XRegister.tag(), self.value, writer)
+        encode_integer(TermKind::XRegister.tag(), &BigInt::from(self.value), writer)
     }
 }
 
@@ -383,15 +400,14 @@ pub struct YRegister {
 impl Decode for YRegister {
     fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         TermKind::from_tag(tag).expect(&[TermKind::YRegister])?;
-
-        let value = decode_usize(tag, reader)?;
+        let value = usize::try_from(decode_integer(tag, reader)?)?;
         Ok(Self { value, ty: None })
     }
 }
 
 impl Encode for YRegister {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        encode_usize(TermKind::YRegister.tag(), self.value, writer)
+        encode_integer(TermKind::YRegister.tag(), &BigInt::from(self.value), writer)
     }
 }
 
@@ -419,15 +435,14 @@ pub struct Label {
 impl Decode for Label {
     fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         TermKind::from_tag(tag).expect(&[TermKind::Label])?;
-
-        let value = decode_usize(tag, reader)?;
+        let value = usize::try_from(decode_integer(tag, reader)?)?;
         Ok(Self { value })
     }
 }
 
 impl Encode for Label {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        encode_usize(TermKind::Label.tag(), self.value, writer)
+        encode_integer(TermKind::Label.tag(), &BigInt::from(self.value), writer)
     }
 }
 
@@ -459,40 +474,6 @@ impl<T: Encode> Encode for List<T> {
     }
 }
 
-// TODO: rename
-fn decode_usize<R: Read>(tag: u8, reader: &mut R) -> Result<usize, DecodeError> {
-    if (tag & 0b1_000) == 0 {
-        Ok((tag >> 4) as usize)
-    } else if (tag & 0b10_000) == 0 {
-        let v = reader.read_u8()? as usize;
-        Ok((usize::from(tag & 0b111_00_000) << 3) | v)
-    } else if (tag >> 5) != 0b111 {
-        let byte_size = usize::from(tag >> 5) + 2;
-        if byte_size > USIZE_BYTES as usize {
-            Err(DecodeError::TooLargeUsizeValue { byte_size })
-        } else {
-            Ok(reader.read_uint::<BigEndian>(byte_size)? as usize)
-        }
-    } else {
-        let byte_size = usize::decode(reader)?;
-        Err(DecodeError::TooLargeUsizeValue { byte_size })
-    }
-}
-
-// TODO: rename
-fn encode_usize<W: Write>(tag: u8, value: usize, writer: &mut W) -> Result<(), EncodeError> {
-    if value < 16 {
-        writer.write_u8((value << 4) as u8 | tag)?;
-    } else if value < 0x800 {
-        writer.write_u8(((value >> 3) as u8 & 0b1110_0000) | tag | 0b000_1000)?;
-        writer.write_u8((value & 0xFF) as u8)?;
-    } else {
-        let bytes = value.to_be_bytes();
-        encode_num_bytes(tag, &bytes, writer)?;
-    }
-    Ok(())
-}
-
 fn decode_integer<R: Read>(tag: u8, reader: &mut R) -> Result<BigInt, DecodeError> {
     if (tag & 0b1_000) == 0 {
         Ok(BigInt::from(tag >> 4))
@@ -513,18 +494,29 @@ fn decode_integer<R: Read>(tag: u8, reader: &mut R) -> Result<BigInt, DecodeErro
 }
 
 fn encode_integer<W: Write>(tag: u8, value: &BigInt, writer: &mut W) -> Result<(), EncodeError> {
-    if let Ok(v) = usize::try_from(value.clone()) {
-        encode_usize(tag, v, writer)
-    } else if let Ok(v) = i16::try_from(value.clone()) {
-        let bytes = v.to_be_bytes();
-        encode_num_bytes(tag, &bytes, writer)
-    } else {
-        let bytes = value.to_signed_bytes_be();
-        encode_num_bytes(tag, &bytes, writer)
+    if let Ok(v) = i16::try_from(value.clone()) {
+        if v < 0 {
+            let bytes = v.to_be_bytes();
+            return encode_integer_bytes(tag, &bytes, writer);
+        } else if v < 16 {
+            writer.write_u8((v << 4) as u8 | tag)?;
+            return Ok(());
+        } else if v < 0x800 {
+            writer.write_u8(((v >> 3) as u8 & 0b1110_0000) | tag | 0b000_1000)?;
+            writer.write_u8((v & 0xFF) as u8)?;
+            return Ok(());
+        }
     }
+
+    let bytes = value.to_signed_bytes_be();
+    encode_integer_bytes(tag, &bytes, writer)
 }
 
-fn encode_num_bytes<W: Write>(tag: u8, bytes: &[u8], writer: &mut W) -> Result<(), EncodeError> {
+fn encode_integer_bytes<W: Write>(
+    tag: u8,
+    bytes: &[u8],
+    writer: &mut W,
+) -> Result<(), EncodeError> {
     assert!(bytes.len() >= 2, "bug");
 
     if bytes.len() <= 8 {
@@ -556,31 +548,6 @@ fn encode_num_bytes<W: Write>(tag: u8, bytes: &[u8], writer: &mut W) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn decode_usize_works() {
-        let data: &[(&[u8], usize)] = &[
-            (&[0], 0),
-            (&[16], 1),
-            (&[8, 20], 20),
-            (&[40, 144], 400),
-            (&[24, 87, 28], 22300),
-            (&[56, 15, 18, 6], 987654),
-        ];
-        for (input, expected) in data {
-            let decoded = decode_usize(input[0], &mut &input[1..]).expect("decode failure");
-            assert_eq!(decoded, *expected);
-        }
-    }
-
-    #[test]
-    fn too_large_usize_value() {
-        let input = [248, 0, 0, 137, 16, 135, 184, 176, 52, 113, 21];
-        assert!(matches!(
-            decode_usize(input[0], &mut &input[1..]),
-            Err(DecodeError::TooLargeUsizeValue { .. })
-        ));
-    }
 
     #[test]
     fn decode_integer_works() {
