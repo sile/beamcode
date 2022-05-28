@@ -78,22 +78,22 @@ pub enum Term {
 }
 
 impl Decode for Term {
-    fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let tag = reader.read_u8()?;
-        let mut reader = once(tag).chain(reader);
+    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         match TermKind::from_tag(tag) {
-            TermKind::Usize => Literal::decode(&mut reader).map(Self::Literal),
-            TermKind::Integer => Integer::decode(&mut reader).map(Self::Integer),
-            TermKind::Atom => Atom::decode(&mut reader).map(Self::Atom),
-            TermKind::XRegister => XRegister::decode(&mut reader).map(Self::XRegister),
-            TermKind::YRegister => YRegister::decode(&mut reader).map(Self::YRegister),
-            TermKind::Label => Label::decode(&mut reader).map(Self::Label),
+            TermKind::Usize => Literal::decode_with_tag(reader, tag).map(Self::Literal),
+            TermKind::Integer => Integer::decode_with_tag(reader, tag).map(Self::Integer),
+            TermKind::Atom => Atom::decode_with_tag(reader, tag).map(Self::Atom),
+            TermKind::XRegister => XRegister::decode_with_tag(reader, tag).map(Self::XRegister),
+            TermKind::YRegister => YRegister::decode_with_tag(reader, tag).map(Self::YRegister),
+            TermKind::Label => Label::decode_with_tag(reader, tag).map(Self::Label),
             TermKind::Character => todo!(),
-            TermKind::List => List::decode(&mut reader).map(Self::List),
+            TermKind::List => List::decode_with_tag(reader, tag).map(Self::List),
             TermKind::FloatingPointRegister => todo!(),
             TermKind::AllocationList => todo!(),
             TermKind::TypedRegister => todo!(),
-            TermKind::Literal => ExtendedLiteral::decode(&mut reader).map(Self::ExtendedLiteral),
+            TermKind::Literal => {
+                ExtendedLiteral::decode_with_tag(reader, tag).map(Self::ExtendedLiteral)
+            }
             TermKind::Unknown => Err(DecodeError::UnknownTermTag { tag }),
         }
     }
@@ -115,51 +115,29 @@ impl From<Register> for Term {
 }
 
 impl Decode for Register {
-    fn decode<R: Read>(mut reader: &mut R) -> Result<Self, DecodeError> {
-        let tag = reader.read_u8()?;
-        match tag & 0b111 {
-            TAG_X => XRegister::decode(&mut once(tag).chain(reader)).map(Self::X),
-            TAG_Y => YRegister::decode(&mut once(tag).chain(reader)).map(Self::Y),
-            TAG_Z if tag >> 4 == 0b0101 => {
-                let tag = reader.read_u8()?;
-                let mut register = match tag & 0b111 {
-                    TAG_X => XRegister::decode(&mut once(tag).chain(&mut reader)).map(Self::X)?,
-                    TAG_Y => YRegister::decode(&mut once(tag).chain(&mut reader)).map(Self::Y)?,
-                    _ => return Err(DecodeError::UnknownTermTag { tag }),
-                };
-                let ty = Literal::decode(&mut reader)?;
-                match &mut register {
-                    Self::X(r) => r.ty = Some(ty.value),
-                    Self::Y(r) => r.ty = Some(ty.value),
-                };
-                Ok(register)
-            }
-            _ => Err(DecodeError::UnknownTermTag { tag }),
-        }
+    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
+        todo!()
+        // let tag = reader.read_u8()?;
+        // match tag & 0b111 {
+        //     TAG_X => XRegister::decode(&mut once(tag).chain(reader)).map(Self::X),
+        //     TAG_Y => YRegister::decode(&mut once(tag).chain(reader)).map(Self::Y),
+        //     TAG_Z if tag >> 4 == 0b0101 => {
+        //         let tag = reader.read_u8()?;
+        //         let mut register = match tag & 0b111 {
+        //             TAG_X => XRegister::decode(&mut once(tag).chain(&mut reader)).map(Self::X)?,
+        //             TAG_Y => YRegister::decode(&mut once(tag).chain(&mut reader)).map(Self::Y)?,
+        //             _ => return Err(DecodeError::UnknownTermTag { tag }),
+        //         };
+        //         let ty = Literal::decode(&mut reader)?;
+        //         match &mut register {
+        //             Self::X(r) => r.ty = Some(ty.value),
+        //             Self::Y(r) => r.ty = Some(ty.value),
+        //         };
+        //         Ok(register)
+        //     }
+        //     _ => Err(DecodeError::UnknownTermTag { tag }),
+        // }
     }
-}
-
-// TODO: move
-#[derive(Debug)]
-struct Once {
-    byte: u8,
-    read: bool,
-}
-
-impl Read for Once {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        if self.read || buf.is_empty() {
-            Ok(0)
-        } else {
-            buf[0] = self.byte;
-            self.read = true;
-            Ok(1)
-        }
-    }
-}
-
-fn once(byte: u8) -> Once {
-    Once { byte, read: false }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -172,11 +150,8 @@ pub enum Source {
 }
 
 impl Decode for usize {
-    fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let tag = reader.read_u8()?;
-        if tag & 0b111 != TAG_U {
-            return Err(DecodeError::UnknownTermTag { tag });
-        }
+    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
+        TermKind::from_tag(tag).expect(&[TermKind::Usize])?;
         let value = decode_usize(tag, reader)?;
         Ok(value)
     }
@@ -196,13 +171,10 @@ pub struct Literal {
 }
 
 impl Decode for Literal {
-    fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let tag = reader.read_u8()?;
-        if tag & 0b111 != TAG_U {
-            return Err(DecodeError::UnknownTermTag { tag });
-        }
-        let value = decode_usize(tag, reader)?;
-        Ok(Self { value })
+    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
+        Ok(Self {
+            value: usize::decode_with_tag(reader, tag)?,
+        })
     }
 }
 
@@ -217,9 +189,8 @@ pub struct ExtendedLiteral {
     pub value: usize,
 }
 
-impl ExtendedLiteral {
-    fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let tag = reader.read_u8()?;
+impl Decode for ExtendedLiteral {
+    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         TermKind::from_tag(tag).expect(&[TermKind::Literal])?;
 
         let literal = Literal::decode(reader)?;
@@ -243,8 +214,7 @@ pub struct Integer {
 }
 
 impl Decode for Integer {
-    fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let tag = reader.read_u8()?;
+    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         TermKind::from_tag(tag).expect(&[TermKind::Integer])?;
 
         let value = decode_integer(tag, reader)?;
@@ -264,8 +234,7 @@ pub struct Atom {
 }
 
 impl Decode for Atom {
-    fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let tag = reader.read_u8()?;
+    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         TermKind::from_tag(tag).expect(&[TermKind::Atom])?;
 
         let value = decode_usize(tag, reader)?;
@@ -286,8 +255,7 @@ pub struct XRegister {
 }
 
 impl Decode for XRegister {
-    fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let tag = reader.read_u8()?;
+    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         TermKind::from_tag(tag).expect(&[TermKind::XRegister])?;
 
         let value = decode_usize(tag, reader)?;
@@ -315,8 +283,7 @@ pub struct YRegister {
 }
 
 impl Decode for YRegister {
-    fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let tag = reader.read_u8()?;
+    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         TermKind::from_tag(tag).expect(&[TermKind::YRegister])?;
 
         let value = decode_usize(tag, reader)?;
@@ -331,8 +298,8 @@ impl Encode for YRegister {
 }
 
 impl Decode for Vec<YRegister> {
-    fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let list = List::decode(reader)?;
+    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
+        let list = List::decode_with_tag(reader, tag)?;
         Ok(list.elements)
     }
 }
@@ -352,8 +319,7 @@ pub struct Label {
 }
 
 impl Decode for Label {
-    fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let tag = reader.read_u8()?;
+    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         TermKind::from_tag(tag).expect(&[TermKind::Label])?;
 
         let value = decode_usize(tag, reader)?;
@@ -373,8 +339,7 @@ pub struct List<T = Term> {
 }
 
 impl<T: Decode> Decode for List<T> {
-    fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
-        let tag = reader.read_u8()?;
+    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         TermKind::from_tag(tag).expect(&[TermKind::List])?;
 
         let size = Literal::decode(reader)?.value;

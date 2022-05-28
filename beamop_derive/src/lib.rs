@@ -24,7 +24,7 @@ pub fn derive_decode_trait(input: proc_macro::TokenStream) -> proc_macro::TokenS
     let decode = generate_decode_fun_body(&input.data);
     let expanded = quote! {
         impl crate::Decode for #name {
-            fn decode<R: std::io::Read>(reader: &mut R) -> Result<Self, crate::DecodeError> {
+            fn decode_with_tag<R: std::io::Read>(reader: &mut R, tag: u8) -> Result<Self, crate::DecodeError> {
                 #decode
             }
         }
@@ -44,16 +44,10 @@ fn generate_decode_fun_body(data: &Data) -> TokenStream {
                     } else {
                         unimplemented!()
                     };
-                quote_spanned! { variant.span() => #op::CODE => crate::Decode::decode(reader).map(Self::#name), }
+                quote_spanned! { variant.span() => #op::CODE => crate::Decode::decode_with_tag(reader, tag).map(Self::#name), }
             });
             quote! {
-                use byteorder::ReadBytesExt as _;
-                use std::io::Read as _;
-
-                let opcode = reader.read_u8()?;
-                let opcode_reader = [opcode];
-                let reader = &mut opcode_reader.chain(reader);
-                match opcode {
+                match tag {
                     #(#arms)*
                     opcode => Err(crate::DecodeError::UnknownOpcode{ opcode })
                 }
@@ -66,11 +60,8 @@ fn generate_decode_fun_body(data: &Data) -> TokenStream {
                     quote_spanned! { f.span() => #name: crate::Decode::decode(reader)? }
                 });
                 quote! {
-                    use byteorder::ReadBytesExt as _;
-
-                    let opcode = reader.read_u8()?;
-                    if opcode != Self::CODE {
-                        return Err(crate::DecodeError::UnknownOpcode{ opcode });
+                    if tag != Self::CODE {
+                        return Err(crate::DecodeError::UnknownOpcode{ opcode: tag });
                     }
                     Ok(Self{
                         #(#decode ,)*

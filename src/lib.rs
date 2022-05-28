@@ -1,6 +1,7 @@
 use crate::op::Op;
 use crate::term::TermKind;
 use beamop_derive::{Decode, Encode, Opcode};
+use byteorder::ReadBytesExt as _;
 use std::io::{Read, Write};
 
 pub mod op;
@@ -11,7 +12,12 @@ pub trait Opcode {
 }
 
 pub trait Decode: Sized {
-    fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError>;
+    fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let tag = reader.read_u8()?;
+        Self::decode_with_tag(reader, tag)
+    }
+
+    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError>;
 }
 
 pub trait Encode {
