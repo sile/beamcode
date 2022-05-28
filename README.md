@@ -1,16 +1,15 @@
 beamcode
 ========
 
+[![beamcode](https://img.shields.io/crates/v/beamcode.svg)](https://crates.io/crates/beamcode)
+[![hex.pm version](https://img.shields.io/hexpm/v/rebar3_beamcode.svg)](https://hex.pm/packages/rebar3_beamcode)
+[![Documentation](https://docs.rs/beamcode/badge.svg)](https://docs.rs/beamcode)
+[![Actions Status](https://github.com/sile/beamcode/workflows/CI/badge.svg)](https://github.com/sile/beamcode/actions)
+![License](https://img.shields.io/crates/l/beamcode)
+
+A Rust library to encode / decode Erlang BEAM instructions.
+
 References
 ----------
 
-- https://blog.stenmans.org/theBeamBook/
-- https://www.erlang.org/doc/apps/erts/beam_makeops.html
-- http://beam-wisdoms.clau.se/en/latest/indepth-beam-instructions.html
-- http://beam-wisdoms.clau.se/en/latest/indepth-beam-file.html#beam-term-format
-- opcode: https://blog.stenmans.org/theBeamBook/#_generic_instructions
-- compact term: https://blog.stenmans.org/theBeamBook/#SEC-BeamModulesCTE
-- otp/lib/compiler/src/beam_opcodes.erl (generated file)
-- otp/lib/compiler/serc/genop.tab
-- `beam_disasm:file/1`
-- `beam_asm:encode/2`
+- [The BEAM Book - Generic BEAM Instructions](https://blog.stenmans.org/theBeamBook/#CH-Instructions)
