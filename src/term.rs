@@ -67,7 +67,7 @@ const TAG_Z: u8 = 7; // Extended
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Encode)]
 pub enum Term {
     Usize(usize),
-    Integer(Integer),
+    Integer(BigInt),
     Atom(Atom),
     XRegister(XRegister),
     YRegister(YRegister),
@@ -81,19 +81,17 @@ impl Decode for Term {
     fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         match TermKind::from_tag(tag) {
             TermKind::Usize => Decode::decode_with_tag(reader, tag).map(Self::Usize),
-            TermKind::Integer => Integer::decode_with_tag(reader, tag).map(Self::Integer),
-            TermKind::Atom => Atom::decode_with_tag(reader, tag).map(Self::Atom),
-            TermKind::XRegister => XRegister::decode_with_tag(reader, tag).map(Self::XRegister),
-            TermKind::YRegister => YRegister::decode_with_tag(reader, tag).map(Self::YRegister),
-            TermKind::Label => Label::decode_with_tag(reader, tag).map(Self::Label),
+            TermKind::Integer => Decode::decode_with_tag(reader, tag).map(Self::Integer),
+            TermKind::Atom => Decode::decode_with_tag(reader, tag).map(Self::Atom),
+            TermKind::XRegister => Decode::decode_with_tag(reader, tag).map(Self::XRegister),
+            TermKind::YRegister => Decode::decode_with_tag(reader, tag).map(Self::YRegister),
+            TermKind::Label => Decode::decode_with_tag(reader, tag).map(Self::Label),
             TermKind::Character => todo!(),
-            TermKind::List => List::decode_with_tag(reader, tag).map(Self::List),
+            TermKind::List => Decode::decode_with_tag(reader, tag).map(Self::List),
             TermKind::FloatingPointRegister => todo!(),
             TermKind::AllocationList => todo!(),
             TermKind::TypedRegister => todo!(),
-            TermKind::Literal => {
-                ExtendedLiteral::decode_with_tag(reader, tag).map(Self::ExtendedLiteral)
-            }
+            TermKind::Literal => Decode::decode_with_tag(reader, tag).map(Self::ExtendedLiteral),
             TermKind::Unknown => Err(DecodeError::UnknownTermTag { tag }),
         }
     }
@@ -175,23 +173,17 @@ impl Encode for ExtendedLiteral {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Integer {
-    pub value: BigInt,
-}
-
-impl Decode for Integer {
+impl Decode for BigInt {
     fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         TermKind::from_tag(tag).expect(&[TermKind::Integer])?;
-
         let value = decode_integer(tag, reader)?;
-        Ok(Self { value })
+        Ok(value)
     }
 }
 
-impl Encode for Integer {
+impl Encode for BigInt {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        encode_integer(TAG_I, &self.value, writer)
+        encode_integer(TAG_I, self, writer)
     }
 }
 
