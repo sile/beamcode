@@ -309,7 +309,7 @@ impl Decode for char {
     fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         TermKind::from_tag(tag).expect(&[TermKind::Character])?;
         let value = u32::try_from(decode_integer(tag, reader)?)?;
-        char::from_u32(value).ok_or_else(|| DecodeError::InvalidUnicodeCodepoint { value })
+        char::from_u32(value).ok_or(DecodeError::InvalidUnicodeCodepoint { value })
     }
 }
 
@@ -481,11 +481,11 @@ impl<T: Encode> Encode for List<T> {
 }
 
 fn decode_integer<R: Read>(tag: u8, reader: &mut R) -> Result<BigInt, DecodeError> {
-    if (tag & 0b1_000) == 0 {
+    if (tag & 0b1000) == 0 {
         Ok(BigInt::from(tag >> 4))
-    } else if (tag & 0b10_000) == 0 {
+    } else if (tag & 0b1_0000) == 0 {
         let v = u64::from(reader.read_u8()?);
-        Ok(BigInt::from((u64::from(tag) & 0b111_00_000) << 3 | v))
+        Ok(BigInt::from((u64::from(tag) & 0b1110_0000) << 3 | v))
     } else if (tag >> 5) != 0b111 {
         let byte_size = usize::from(tag >> 5) + 2;
         let mut buf = vec![0; byte_size];
