@@ -1,3 +1,9 @@
+//! Terms.
+//!
+//! # References
+//!
+//! - [The BEAM Book - Compact Term Encoding](https://blog.stenmans.org/theBeamBook/#SEC-BeamModulesCTE)
+//! - [erlang/otp/lib/compiler/src/beam_asm.erl](https://github.com/erlang/otp/blob/master/lib/compiler/src/beam_asm.erl)
 use crate::{Decode, DecodeError, Encode, EncodeError};
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use num::BigInt;
