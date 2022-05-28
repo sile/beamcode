@@ -9,7 +9,7 @@ pub fn derive_opcode_trait(input: proc_macro::TokenStream) -> proc_macro::TokenS
     let name = input.ident;
     let code = &input.attrs.last().expect("missing `#[opcode(N)]`").tokens;
     let expanded = quote! {
-        impl crate::op::Opcode for #name {
+        impl crate::instruction::Opcode for #name {
             const CODE: u8 = #code;
         }
     };

@@ -1,11 +1,11 @@
-//! BEAM operations (a.k.a. instructions).
+//! BEAM instructions.
 //!
 //! # References
 //!
 //! - [The BEAM Book - Generic Instructions](https://blog.stenmans.org/theBeamBook/#_generic_instructions)
 //! - [erlang/otp/lib/compiler/src/genop.tab](https://github.com/erlang/otp/blob/master/lib/compiler/src/genop.tab)
 //! - erlang/otp/lib/compiler/src/beam_opcodes.erl (generated file)
-use crate::term::{Allocation, Atom, Label, List, Register, Term, YRegister};
+use crate::term::{self, Allocation, Atom, List, Register, Term, YRegister};
 use crate::{Decode, Encode};
 use beamop_derive::Opcode;
 
@@ -14,225 +14,225 @@ pub trait Opcode {
 }
 
 #[derive(Debug, Clone, Decode, Encode)]
-pub enum Op {
-    Allocate(AllocateOp),
-    AllocateHeap(AllocateHeapOp),
-    AllocateHeapZero(AllocateHeapZeroOp),
-    AllocateZero(AllocateZeroOp),
-    Apply(ApplyOp),
-    ApplyLast(ApplyLastOp),
-    Badmatch(BadmatchOp),
-    Badrecord(BadrecordOp),
-    Bif0(Bif0Op),
-    Bif1(Bif1Op),
-    Bif2(Bif2Op),
-    BsAdd(BsAddOp),
-    BsAppend(BsAppendOp),
+pub enum Instruction {
+    Allocate(Allocate),
+    AllocateHeap(AllocateHeap),
+    AllocateHeapZero(AllocateHeapZero),
+    AllocateZero(AllocateZero),
+    Apply(Apply),
+    ApplyLast(ApplyLast),
+    Badmatch(Badmatch),
+    Badrecord(Badrecord),
+    Bif0(Bif0),
+    Bif1(Bif1),
+    Bif2(Bif2),
+    BsAdd(BsAdd),
+    BsAppend(BsAppend),
     /// Deprecated.
-    BsBitsToBytes(BsBitsToBytesOp),
+    BsBitsToBytes(BsBitsToBytes),
     /// Deprecated.
-    BsBitsToBytes2(BsBitsToBytes2Op),
-    BsContextToBinary(BsContextToBinaryOp),
-    BsCreateBin(BsCreateBinOp),
+    BsBitsToBytes2(BsBitsToBytes2),
+    BsContextToBinary(BsContextToBinary),
+    BsCreateBin(BsCreateBin),
     /// Deprecated.
-    BsFinal(BsFinalOp),
+    BsFinal(BsFinal),
     /// Deprecated.
-    BsFinal2(BsFinal2Op),
+    BsFinal2(BsFinal2),
     /// Deprecated.
-    BsGetBinary(BsGetBinaryOp),
-    BsGetBinary2(BsGetBinary2Op),
+    BsGetBinary(BsGetBinary),
+    BsGetBinary2(BsGetBinary2),
     /// Deprecated.
-    BsGetFloat(BsGetFloatOp),
-    BsGetFloat2(BsGetFloat2Op),
+    BsGetFloat(BsGetFloat),
+    BsGetFloat2(BsGetFloat2),
     /// Deprecated.
-    BsGetInteger(BsGetIntegerOp),
-    BsGetInteger2(BsGetInteger2Op),
-    BsGetPosition(BsGetPositionOp),
-    BsGetTail(BsGetTailOp),
-    BsGetUtf16(BsGetUtf16Op),
-    BsGetUtf32(BsGetUtf32Op),
-    BsGetUtf8(BsGetUtf8Op),
+    BsGetInteger(BsGetInteger),
+    BsGetInteger2(BsGetInteger2),
+    BsGetPosition(BsGetPosition),
+    BsGetTail(BsGetTail),
+    BsGetUtf16(BsGetUtf16),
+    BsGetUtf32(BsGetUtf32),
+    BsGetUtf8(BsGetUtf8),
     /// Deprecated.
-    BsInit(BsInitOp),
-    BsInit2(BsInit2Op),
-    BsInitBits(BsInitBitsOp),
-    BsInitWritable(BsInitWritableOp),
-    BsMatchString(BsMatchStringOp),
-    BsNeedBuf(BsNeedBufOp),
-    BsPrivateAppend(BsPrivateAppendOp),
-    BsPutBinary(BsPutBinaryOp),
-    BsPutFloat(BsPutFloatOp),
-    BsPutInteger(BsPutIntegerOp),
-    BsPutString(BsPutStringOp),
-    BsPutUtf32(BsPutUtf32Op),
-    BsPutUtf16(BsPutUtf16Op),
-    BsPutUtf8(BsPutUtf8Op),
+    BsInit(BsInit),
+    BsInit2(BsInit2),
+    BsInitBits(BsInitBits),
+    BsInitWritable(BsInitWritable),
+    BsMatchString(BsMatchString),
+    BsNeedBuf(BsNeedBuf),
+    BsPrivateAppend(BsPrivateAppend),
+    BsPutBinary(BsPutBinary),
+    BsPutFloat(BsPutFloat),
+    BsPutInteger(BsPutInteger),
+    BsPutString(BsPutString),
+    BsPutUtf32(BsPutUtf32),
+    BsPutUtf16(BsPutUtf16),
+    BsPutUtf8(BsPutUtf8),
     /// Deprecated.
-    BsRestore(BsRestoreOp),
-    BsRestore2(BsRestore2Op),
-    BsSave(BsSaveOp),
-    BsSave2(BsSave2Op),
-    BsSetPosition(BsSetPositionOp),
-    BsSkipBits(BsSkipBitsOp),
-    BsSkipBits2(BsSkipBits2Op),
-    BsSkipUtf32(BsSkipUtf32Op),
-    BsSkipUtf16(BsSkipUtf16Op),
-    BsSkipUtf8(BsSkipUtf8Op),
+    BsRestore(BsRestore),
+    BsRestore2(BsRestore2),
+    BsSave(BsSave),
+    BsSave2(BsSave2),
+    BsSetPosition(BsSetPosition),
+    BsSkipBits(BsSkipBits),
+    BsSkipBits2(BsSkipBits2),
+    BsSkipUtf32(BsSkipUtf32),
+    BsSkipUtf16(BsSkipUtf16),
+    BsSkipUtf8(BsSkipUtf8),
     /// Deprecated.
-    BsStartMatch(BsStartMatchOp),
-    BsStartMatch2(BsStartMatch2Op),
-    BsStartMatch3(BsStartMatch3Op),
-    BsStartMatch4(BsStartMatch4Op),
+    BsStartMatch(BsStartMatch),
+    BsStartMatch2(BsStartMatch2),
+    BsStartMatch3(BsStartMatch3),
+    BsStartMatch4(BsStartMatch4),
     /// Deprecated.
-    BsTestTail(BsTestTailOp),
-    BsTestTail2(BsTestTail2Op),
-    BsTestUnit(BsTestUnitOp),
-    BsUtf16Size(BsUtf16SizeOp),
-    BsUtf8Size(BsUtf8SizeOp),
-    BuildStacktrace(BuildStacktraceOp),
-    Call(CallOp),
-    CallExt(CallExtOp),
-    CallExtLast(CallExtLastOp),
-    CallExtOnly(CallExtOnlyOp),
-    CallFun(CallFunOp),
-    CallFun2(CallFun2Op),
-    CallLast(CallLastOp),
-    CallOnly(CallOnlyOp),
-    CaseEnd(CaseEndOp),
-    Catch(CatchOp),
-    CatchEnd(CatchEndOp),
-    Deallocate(DeallocateOp),
-    Fadd(FaddOp),
-    Fcheckerror(FcheckerrorOp),
-    Fclearerror(FclearerrorOp),
-    Fconv(FconvOp),
-    Fdiv(FdivOp),
-    Fmove(FmoveOp),
-    Fmul(FmulOp),
-    Fnegate(FnegateOp),
-    Fsub(FsubOp),
-    FuncInfo(FuncInfoOp),
-    GcBif1(GcBif1Op),
-    GcBif2(GcBif2Op),
-    GcBif3(GcBif3Op),
-    GetHd(GetHdOp),
-    GetList(GetListOp),
-    GetMapElement(GetMapElementOp),
-    GetTl(GetTlOp),
-    GetTupleElement(GetTupleElementOp),
-    HasMapFields(HasMapFieldsOp),
-    IfEnd(IfEndOp),
-    Init(InitOp),
-    InitYregs(InitYregsOp),
+    BsTestTail(BsTestTail),
+    BsTestTail2(BsTestTail2),
+    BsTestUnit(BsTestUnit),
+    BsUtf16Size(BsUtf16Size),
+    BsUtf8Size(BsUtf8Size),
+    BuildStacktrace(BuildStacktrace),
+    Call(Call),
+    CallExt(CallExt),
+    CallExtLast(CallExtLast),
+    CallExtOnly(CallExtOnly),
+    CallFun(CallFun),
+    CallFun2(CallFun2),
+    CallLast(CallLast),
+    CallOnly(CallOnly),
+    CaseEnd(CaseEnd),
+    Catch(Catch),
+    CatchEnd(CatchEnd),
+    Deallocate(Deallocate),
+    Fadd(Fadd),
+    Fcheckerror(Fcheckerror),
+    Fclearerror(Fclearerror),
+    Fconv(Fconv),
+    Fdiv(Fdiv),
+    Fmove(Fmove),
+    Fmul(Fmul),
+    Fnegate(Fnegate),
+    Fsub(Fsub),
+    FuncInfo(FuncInfo),
+    GcBif1(GcBif1),
+    GcBif2(GcBif2),
+    GcBif3(GcBif3),
+    GetHd(GetHd),
+    GetList(GetList),
+    GetMapElement(GetMapElement),
+    GetTl(GetTl),
+    GetTupleElement(GetTupleElement),
+    HasMapFields(HasMapFields),
+    IfEnd(IfEnd),
+    Init(Init),
+    InitYregs(InitYregs),
     /// Deprecated.
-    IntBand(IntBandOp),
+    IntBand(IntBand),
     /// Deprecated.
-    IntBnot(IntBnotOp),
+    IntBnot(IntBnot),
     /// Deprecated.
-    IntBor(IntBorOp),
+    IntBor(IntBor),
     /// Deprecated.
-    IntBsl(IntBslOp),
+    IntBsl(IntBsl),
     /// Deprecated.
-    IntBsr(IntBsrOp),
+    IntBsr(IntBsr),
     /// Deprecated.
-    IntBxor(IntBxorOp),
-    IntCodeEnd(IntCodeEndOp),
+    IntBxor(IntBxor),
+    IntCodeEnd(IntCodeEnd),
     /// Deprecated.
-    IntDiv(IntDivOp),
+    IntDiv(IntDiv),
     /// Deprecated.
-    IntRem(IntRemOp),
-    IsAtom(IsAtomOp),
-    IsBinary(IsBinaryOp),
-    IsBitstr(IsBitstrOp),
-    IsBoolean(IsBooleanOp),
+    IntRem(IntRem),
+    IsAtom(IsAtom),
+    IsBinary(IsBinary),
+    IsBitstr(IsBitstr),
+    IsBoolean(IsBoolean),
     /// Deprecated.
-    IsConstant(IsConstantOp),
-    IsEq(IsEqOp),
-    IsEqExact(IsEqExactOp),
-    IsFloat(IsFloatOp),
-    IsFunction(IsFunctionOp),
-    IsFunction2(IsFunction2Op),
-    IsGe(IsGeOp),
-    IsInteger(IsIntegerOp),
-    IsList(IsListOp),
-    IsLt(IsLtOp),
-    IsMap(IsMapOp),
-    IsNe(IsNeOp),
-    IsNeExact(IsNeExactOp),
-    IsNil(IsNilOp),
-    IsNonemptyList(IsNonemptyListOp),
-    IsNumber(IsNumberOp),
-    IsPid(IsPidOp),
-    IsPort(IsPortOp),
-    IsReference(IsReferenceOp),
-    IsTaggedTuple(IsTaggedTupleOp),
-    IsTuple(IsTupleOp),
-    Jump(JumpOp),
-    Label(LabelOp),
-    Line(LineOp),
-    LoopRec(LoopRecOp),
-    LoopRecEnd(LoopRecEndOp),
+    IsConstant(IsConstant),
+    IsEq(IsEq),
+    IsEqExact(IsEqExact),
+    IsFloat(IsFloat),
+    IsFunction(IsFunction),
+    IsFunction2(IsFunction2),
+    IsGe(IsGe),
+    IsInteger(IsInteger),
+    IsList(IsList),
+    IsLt(IsLt),
+    IsMap(IsMap),
+    IsNe(IsNe),
+    IsNeExact(IsNeExact),
+    IsNil(IsNil),
+    IsNonemptyList(IsNonemptyList),
+    IsNumber(IsNumber),
+    IsPid(IsPid),
+    IsPort(IsPort),
+    IsReference(IsReference),
+    IsTaggedTuple(IsTaggedTuple),
+    IsTuple(IsTuple),
+    Jump(Jump),
+    Label(Label),
+    Line(Line),
+    LoopRec(LoopRec),
+    LoopRecEnd(LoopRecEnd),
     /// Deprecated.
-    MakeFun(MakeFunOp),
-    MakeFun2(MakeFun2Op),
-    MakeFun3(MakeFun3Op),
+    MakeFun(MakeFun),
+    MakeFun2(MakeFun2),
+    MakeFun3(MakeFun3),
     /// Deprecated.
-    MDiv(MDivOp),
-    Move(MoveOp),
+    MDiv(MDiv),
+    Move(Move),
     /// Deprecated.
-    MPlus(MPlusOp),
+    MPlus(MPlus),
     /// Deprecated.
-    MMinus(MMinusOp),
+    MMinus(MMinus),
     /// Deprecated.
-    MTimes(MTimesOp),
-    NifStart(NifStartOp),
-    OnLoad(OnLoadOp),
-    Put(PutOp),
-    PutList(PutListOp),
+    MTimes(MTimes),
+    NifStart(NifStart),
+    OnLoad(OnLoad),
+    Put(Put),
+    PutList(PutList),
     /// Deprecated.
-    PutLiteral(PutLiteralOp),
-    PutMapAssoc(PutMapAssocOp),
-    PutMapExact(PutMapExactOp),
+    PutLiteral(PutLiteral),
+    PutMapAssoc(PutMapAssoc),
+    PutMapExact(PutMapExact),
     /// Deprecated.
-    PutString(PutStringOp),
-    PutTuple(PutTupleOp),
-    PutTuple2(PutTuple2Op),
-    Raise(RaiseOp),
-    RawRaise(RawRaiseOp),
-    RecvMark(RecvMarkOp),
-    RecvMarkerBind(RecvMarkerBindOp),
-    RecvMarkerClear(RecvMarkerClearOp),
-    RecvMarkerReserve(RecvMarkerReserveOp),
-    RecvMarkerUse(RecvMarkerUseOp),
-    RecvSet(RecvSetOp),
-    Return(ReturnOp),
-    RemoveMessage(RemoveMessageOp),
-    SelectTupleArity(SelectTupleArityOp),
-    SelectVal(SelectValOp),
-    Send(SendOp),
-    SetTupleElement(SetTupleElementOp),
-    Swap(SwapOp),
-    TestArity(TestArityOp),
-    TestHeap(TestHeapOp),
-    Timeout(TimeoutOp),
-    Trim(TrimOp),
-    Try(TryOp),
-    TryCase(TryCaseOp),
-    TryCaseEnd(TryCaseEndOp),
-    TryEnd(TryEndOp),
-    Wait(WaitOp),
-    WaitTimeout(WaitTimeoutOp),
+    PutString(PutString),
+    PutTuple(PutTuple),
+    PutTuple2(PutTuple2),
+    Raise(Raise),
+    RawRaise(RawRaise),
+    RecvMark(RecvMark),
+    RecvMarkerBind(RecvMarkerBind),
+    RecvMarkerClear(RecvMarkerClear),
+    RecvMarkerReserve(RecvMarkerReserve),
+    RecvMarkerUse(RecvMarkerUse),
+    RecvSet(RecvSet),
+    Return(Return),
+    RemoveMessage(RemoveMessage),
+    SelectTupleArity(SelectTupleArity),
+    SelectVal(SelectVal),
+    Send(Send),
+    SetTupleElement(SetTupleElement),
+    Swap(Swap),
+    TestArity(TestArity),
+    TestHeap(TestHeap),
+    Timeout(Timeout),
+    Trim(Trim),
+    Try(Try),
+    TryCase(TryCase),
+    TryCaseEnd(TryCaseEnd),
+    TryEnd(TryEnd),
+    Wait(Wait),
+    WaitTimeout(WaitTimeout),
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(1)]
-pub struct LabelOp {
+pub struct Label {
     pub literal: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(2)]
-pub struct FuncInfoOp {
+pub struct FuncInfo {
     pub module: Atom,
     pub function: Atom,
     pub arity: usize,
@@ -240,18 +240,18 @@ pub struct FuncInfoOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(3)]
-pub struct IntCodeEndOp {}
+pub struct IntCodeEnd {}
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(4)]
-pub struct CallOp {
+pub struct Call {
     pub arity: usize,
-    pub label: Label,
+    pub label: term::Label,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(5)]
-pub struct CallLastOp {
+pub struct CallLast {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -259,21 +259,21 @@ pub struct CallLastOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(6)]
-pub struct CallOnlyOp {
+pub struct CallOnly {
     pub arity: usize,
-    pub label: Label,
+    pub label: term::Label,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(7)]
-pub struct CallExtOp {
+pub struct CallExt {
     pub arity: usize,
     pub destination: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(8)]
-pub struct CallExtLastOp {
+pub struct CallExtLast {
     pub arity: usize,
     pub destination: usize,
     pub deallocate: usize,
@@ -281,14 +281,14 @@ pub struct CallExtLastOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(9)]
-pub struct Bif0Op {
+pub struct Bif0 {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(10)]
-pub struct Bif1Op {
+pub struct Bif1 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -297,7 +297,7 @@ pub struct Bif1Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(11)]
-pub struct Bif2Op {
+pub struct Bif2 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -307,14 +307,14 @@ pub struct Bif2Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(12)]
-pub struct AllocateOp {
+pub struct Allocate {
     pub stack_need: Allocation,
     pub live: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(13)]
-pub struct AllocateHeapOp {
+pub struct AllocateHeap {
     pub stack_need: Allocation,
     pub heap_need: Allocation,
     pub live: usize,
@@ -322,14 +322,14 @@ pub struct AllocateHeapOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(14)]
-pub struct AllocateZeroOp {
+pub struct AllocateZero {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(15)]
-pub struct AllocateHeapZeroOp {
+pub struct AllocateHeapZero {
     pub stack_need: Allocation,
     pub heap_need: Allocation,
     pub live: usize,
@@ -337,61 +337,61 @@ pub struct AllocateHeapZeroOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(16)]
-pub struct TestHeapOp {
+pub struct TestHeap {
     pub heap_need: Allocation,
     pub live: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(17)]
-pub struct InitOp {
+pub struct Init {
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(18)]
-pub struct DeallocateOp {
+pub struct Deallocate {
     pub n: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(19)]
-pub struct ReturnOp {}
+pub struct Return {}
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(20)]
-pub struct SendOp {}
+pub struct Send {}
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(21)]
-pub struct RemoveMessageOp {}
+pub struct RemoveMessage {}
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(22)]
-pub struct TimeoutOp {}
+pub struct Timeout {}
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(23)]
-pub struct LoopRecOp {
+pub struct LoopRec {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(24)]
-pub struct LoopRecEndOp {
+pub struct LoopRecEnd {
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(25)]
-pub struct WaitOp {
+pub struct Wait {
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(26)]
-pub struct WaitTimeoutOp {
+pub struct WaitTimeout {
     pub arg1: Term,
     pub arg2: Term,
 }
@@ -399,7 +399,7 @@ pub struct WaitTimeoutOp {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(27)]
-pub struct MPlusOp {
+pub struct MPlus {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -409,7 +409,7 @@ pub struct MPlusOp {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(28)]
-pub struct MMinusOp {
+pub struct MMinus {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -419,7 +419,7 @@ pub struct MMinusOp {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(29)]
-pub struct MTimesOp {
+pub struct MTimes {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -429,7 +429,7 @@ pub struct MTimesOp {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(30)]
-pub struct MDivOp {
+pub struct MDiv {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -439,7 +439,7 @@ pub struct MDivOp {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(31)]
-pub struct IntDivOp {
+pub struct IntDiv {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -449,7 +449,7 @@ pub struct IntDivOp {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(32)]
-pub struct IntRemOp {
+pub struct IntRem {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -459,7 +459,7 @@ pub struct IntRemOp {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(33)]
-pub struct IntBandOp {
+pub struct IntBand {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -469,7 +469,7 @@ pub struct IntBandOp {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(34)]
-pub struct IntBorOp {
+pub struct IntBor {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -479,7 +479,7 @@ pub struct IntBorOp {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(35)]
-pub struct IntBxorOp {
+pub struct IntBxor {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -489,7 +489,7 @@ pub struct IntBxorOp {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(36)]
-pub struct IntBslOp {
+pub struct IntBsl {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -499,7 +499,7 @@ pub struct IntBslOp {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(37)]
-pub struct IntBsrOp {
+pub struct IntBsr {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -509,7 +509,7 @@ pub struct IntBsrOp {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(38)]
-pub struct IntBnotOp {
+pub struct IntBnot {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -517,7 +517,7 @@ pub struct IntBnotOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(39)]
-pub struct IsLtOp {
+pub struct IsLt {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -525,7 +525,7 @@ pub struct IsLtOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(40)]
-pub struct IsGeOp {
+pub struct IsGe {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -533,7 +533,7 @@ pub struct IsGeOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(41)]
-pub struct IsEqOp {
+pub struct IsEq {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -541,7 +541,7 @@ pub struct IsEqOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(42)]
-pub struct IsNeOp {
+pub struct IsNe {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -549,131 +549,131 @@ pub struct IsNeOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(43)]
-pub struct IsEqExactOp {
-    pub label: Label,
+pub struct IsEqExact {
+    pub label: term::Label,
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(44)]
-pub struct IsNeExactOp {
-    pub label: Label,
+pub struct IsNeExact {
+    pub label: term::Label,
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(45)]
-pub struct IsIntegerOp {
-    pub label: Label,
+pub struct IsInteger {
+    pub label: term::Label,
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(46)]
-pub struct IsFloatOp {
-    pub label: Label,
+pub struct IsFloat {
+    pub label: term::Label,
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(47)]
-pub struct IsNumberOp {
-    pub label: Label,
+pub struct IsNumber {
+    pub label: term::Label,
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(48)]
-pub struct IsAtomOp {
-    pub label: Label,
+pub struct IsAtom {
+    pub label: term::Label,
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(49)]
-pub struct IsPidOp {
-    pub label: Label,
+pub struct IsPid {
+    pub label: term::Label,
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(50)]
-pub struct IsReferenceOp {
-    pub label: Label,
+pub struct IsReference {
+    pub label: term::Label,
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(51)]
-pub struct IsPortOp {
-    pub label: Label,
+pub struct IsPort {
+    pub label: term::Label,
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(52)]
-pub struct IsNilOp {
-    pub label: Label,
+pub struct IsNil {
+    pub label: term::Label,
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(53)]
-pub struct IsBinaryOp {
-    pub label: Label,
+pub struct IsBinary {
+    pub label: term::Label,
     pub arg1: Term,
 }
 
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(54)]
-pub struct IsConstantOp {
-    pub label: Label,
+pub struct IsConstant {
+    pub label: term::Label,
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(55)]
-pub struct IsListOp {
-    pub label: Label,
+pub struct IsList {
+    pub label: term::Label,
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(56)]
-pub struct IsNonemptyListOp {
-    pub label: Label,
+pub struct IsNonemptyList {
+    pub label: term::Label,
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(57)]
-pub struct IsTupleOp {
-    pub label: Label,
+pub struct IsTuple {
+    pub label: term::Label,
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(58)]
-pub struct TestArityOp {
-    pub label: Label,
+pub struct TestArity {
+    pub label: term::Label,
     pub arg1: Term,
     pub arity: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(59)]
-pub struct SelectValOp {
+pub struct SelectVal {
     pub arg: Term,
-    pub fail_label: Label,
+    pub fail_label: term::Label,
     pub destinations: List,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(60)]
-pub struct SelectTupleArityOp {
+pub struct SelectTupleArity {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -681,33 +681,33 @@ pub struct SelectTupleArityOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(61)]
-pub struct JumpOp {
-    pub label: Label,
+pub struct Jump {
+    pub label: term::Label,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(62)]
-pub struct CatchOp {
+pub struct Catch {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(63)]
-pub struct CatchEndOp {
+pub struct CatchEnd {
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(64)]
-pub struct MoveOp {
+pub struct Move {
     pub src: Term,
     pub dst: Register,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(65)]
-pub struct GetListOp {
+pub struct GetList {
     pub source: Term,
     pub head: Register,
     pub tail: Register,
@@ -715,7 +715,7 @@ pub struct GetListOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(66)]
-pub struct GetTupleElementOp {
+pub struct GetTupleElement {
     pub source: Register,
     pub element: usize,
     pub destination: Register,
@@ -723,7 +723,7 @@ pub struct GetTupleElementOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(67)]
-pub struct SetTupleElementOp {
+pub struct SetTupleElement {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -732,7 +732,7 @@ pub struct SetTupleElementOp {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(68)]
-pub struct PutStringOp {
+pub struct PutString {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -740,7 +740,7 @@ pub struct PutStringOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(69)]
-pub struct PutListOp {
+pub struct PutList {
     pub head: Term,
     pub tail: Term,
     pub destination: Register,
@@ -748,43 +748,43 @@ pub struct PutListOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(70)]
-pub struct PutTupleOp {
+pub struct PutTuple {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(71)]
-pub struct PutOp {
+pub struct Put {
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(72)]
-pub struct BadmatchOp {
+pub struct Badmatch {
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(73)]
-pub struct IfEndOp {}
+pub struct IfEnd {}
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(74)]
-pub struct CaseEndOp {
+pub struct CaseEnd {
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(75)]
-pub struct CallFunOp {
+pub struct CallFun {
     pub arg1: Term,
 }
 
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(76)]
-pub struct MakeFunOp {
+pub struct MakeFun {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -792,14 +792,14 @@ pub struct MakeFunOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(77)]
-pub struct IsFunctionOp {
+pub struct IsFunction {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(78)]
-pub struct CallExtOnlyOp {
+pub struct CallExtOnly {
     pub arity: usize,
     pub destination: usize,
 }
@@ -807,7 +807,7 @@ pub struct CallExtOnlyOp {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(79)]
-pub struct BsStartMatchOp {
+pub struct BsStartMatch {
     pub arg1: Term,
     pub arg2: Term,
 }
@@ -815,7 +815,7 @@ pub struct BsStartMatchOp {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(80)]
-pub struct BsGetIntegerOp {
+pub struct BsGetInteger {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -826,7 +826,7 @@ pub struct BsGetIntegerOp {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(81)]
-pub struct BsGetFloatOp {
+pub struct BsGetFloat {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -837,7 +837,7 @@ pub struct BsGetFloatOp {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(82)]
-pub struct BsGetBinaryOp {
+pub struct BsGetBinary {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -847,7 +847,7 @@ pub struct BsGetBinaryOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(83)]
-pub struct BsSkipBitsOp {
+pub struct BsSkipBits {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -857,28 +857,28 @@ pub struct BsSkipBitsOp {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(84)]
-pub struct BsTestTailOp {
+pub struct BsTestTail {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(85)]
-pub struct BsSaveOp {
+pub struct BsSave {
     pub arg1: Term,
 }
 
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(86)]
-pub struct BsRestoreOp {
+pub struct BsRestore {
     pub arg1: Term,
 }
 
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(87)]
-pub struct BsInitOp {
+pub struct BsInit {
     pub arg1: Term,
     pub arg2: Term,
 }
@@ -886,14 +886,14 @@ pub struct BsInitOp {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(88)]
-pub struct BsFinalOp {
+pub struct BsFinal {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(89)]
-pub struct BsPutIntegerOp {
+pub struct BsPutInteger {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -903,7 +903,7 @@ pub struct BsPutIntegerOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(90)]
-pub struct BsPutBinaryOp {
+pub struct BsPutBinary {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -913,7 +913,7 @@ pub struct BsPutBinaryOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(91)]
-pub struct BsPutFloatOp {
+pub struct BsPutFloat {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -923,44 +923,44 @@ pub struct BsPutFloatOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(92)]
-pub struct BsPutStringOp {
+pub struct BsPutString {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(93)]
-pub struct BsNeedBufOp {
+pub struct BsNeedBuf {
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(94)]
-pub struct FclearerrorOp {}
+pub struct Fclearerror {}
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(95)]
-pub struct FcheckerrorOp {
+pub struct Fcheckerror {
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(96)]
-pub struct FmoveOp {
+pub struct Fmove {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(97)]
-pub struct FconvOp {
+pub struct Fconv {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(98)]
-pub struct FaddOp {
+pub struct Fadd {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -969,7 +969,7 @@ pub struct FaddOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(99)]
-pub struct FsubOp {
+pub struct Fsub {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -978,7 +978,7 @@ pub struct FsubOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(100)]
-pub struct FmulOp {
+pub struct Fmul {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -987,7 +987,7 @@ pub struct FmulOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(101)]
-pub struct FdivOp {
+pub struct Fdiv {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -996,7 +996,7 @@ pub struct FdivOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(102)]
-pub struct FnegateOp {
+pub struct Fnegate {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1004,45 +1004,45 @@ pub struct FnegateOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(103)]
-pub struct MakeFun2Op {
+pub struct MakeFun2 {
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(104)]
-pub struct TryOp {
+pub struct Try {
     pub register: Register,
-    pub label: Label,
+    pub label: term::Label,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(105)]
-pub struct TryEndOp {
+pub struct TryEnd {
     pub register: Register,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(106)]
-pub struct TryCaseOp {
+pub struct TryCase {
     pub register: Register,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(107)]
-pub struct TryCaseEndOp {
+pub struct TryCaseEnd {
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(108)]
-pub struct RaiseOp {
+pub struct Raise {
     pub stacktrace: Term,
     pub exc_value: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(109)]
-pub struct BsInit2Op {
+pub struct BsInit2 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1054,7 +1054,7 @@ pub struct BsInit2Op {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(110)]
-pub struct BsBitsToBytesOp {
+pub struct BsBitsToBytes {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1062,7 +1062,7 @@ pub struct BsBitsToBytesOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(111)]
-pub struct BsAddOp {
+pub struct BsAdd {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1072,27 +1072,27 @@ pub struct BsAddOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(112)]
-pub struct ApplyOp {
+pub struct Apply {
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(113)]
-pub struct ApplyLastOp {
+pub struct ApplyLast {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(114)]
-pub struct IsBooleanOp {
+pub struct IsBoolean {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(115)]
-pub struct IsFunction2Op {
+pub struct IsFunction2 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1100,7 +1100,7 @@ pub struct IsFunction2Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(116)]
-pub struct BsStartMatch2Op {
+pub struct BsStartMatch2 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1110,7 +1110,7 @@ pub struct BsStartMatch2Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(117)]
-pub struct BsGetInteger2Op {
+pub struct BsGetInteger2 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1122,7 +1122,7 @@ pub struct BsGetInteger2Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(118)]
-pub struct BsGetFloat2Op {
+pub struct BsGetFloat2 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1134,7 +1134,7 @@ pub struct BsGetFloat2Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(119)]
-pub struct BsGetBinary2Op {
+pub struct BsGetBinary2 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1146,7 +1146,7 @@ pub struct BsGetBinary2Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(120)]
-pub struct BsSkipBits2Op {
+pub struct BsSkipBits2 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1156,7 +1156,7 @@ pub struct BsSkipBits2Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(121)]
-pub struct BsTestTail2Op {
+pub struct BsTestTail2 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1164,21 +1164,21 @@ pub struct BsTestTail2Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(122)]
-pub struct BsSave2Op {
+pub struct BsSave2 {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(123)]
-pub struct BsRestore2Op {
+pub struct BsRestore2 {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(124)]
-pub struct GcBif1Op {
+pub struct GcBif1 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1188,7 +1188,7 @@ pub struct GcBif1Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(125)]
-pub struct GcBif2Op {
+pub struct GcBif2 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1200,7 +1200,7 @@ pub struct GcBif2Op {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(126)]
-pub struct BsFinal2Op {
+pub struct BsFinal2 {
     pub arg1: Term,
     pub arg2: Term,
 }
@@ -1208,7 +1208,7 @@ pub struct BsFinal2Op {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(127)]
-pub struct BsBitsToBytes2Op {
+pub struct BsBitsToBytes2 {
     pub arg1: Term,
     pub arg2: Term,
 }
@@ -1216,27 +1216,27 @@ pub struct BsBitsToBytes2Op {
 /// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(128)]
-pub struct PutLiteralOp {
+pub struct PutLiteral {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(129)]
-pub struct IsBitstrOp {
+pub struct IsBitstr {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(130)]
-pub struct BsContextToBinaryOp {
+pub struct BsContextToBinary {
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(131)]
-pub struct BsTestUnitOp {
+pub struct BsTestUnit {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1244,7 +1244,7 @@ pub struct BsTestUnitOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(132)]
-pub struct BsMatchStringOp {
+pub struct BsMatchString {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1253,11 +1253,11 @@ pub struct BsMatchStringOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(133)]
-pub struct BsInitWritableOp {}
+pub struct BsInitWritable {}
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(134)]
-pub struct BsAppendOp {
+pub struct BsAppend {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1270,7 +1270,7 @@ pub struct BsAppendOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(135)]
-pub struct BsPrivateAppendOp {
+pub struct BsPrivateAppend {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1281,14 +1281,14 @@ pub struct BsPrivateAppendOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(136)]
-pub struct TrimOp {
+pub struct Trim {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(137)]
-pub struct BsInitBitsOp {
+pub struct BsInitBits {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1299,7 +1299,7 @@ pub struct BsInitBitsOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(138)]
-pub struct BsGetUtf8Op {
+pub struct BsGetUtf8 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1309,7 +1309,7 @@ pub struct BsGetUtf8Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(139)]
-pub struct BsSkipUtf8Op {
+pub struct BsSkipUtf8 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1318,7 +1318,7 @@ pub struct BsSkipUtf8Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(140)]
-pub struct BsGetUtf16Op {
+pub struct BsGetUtf16 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1328,7 +1328,7 @@ pub struct BsGetUtf16Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(141)]
-pub struct BsSkipUtf16Op {
+pub struct BsSkipUtf16 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1337,7 +1337,7 @@ pub struct BsSkipUtf16Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(142)]
-pub struct BsGetUtf32Op {
+pub struct BsGetUtf32 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1347,7 +1347,7 @@ pub struct BsGetUtf32Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(143)]
-pub struct BsSkipUtf32Op {
+pub struct BsSkipUtf32 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1356,7 +1356,7 @@ pub struct BsSkipUtf32Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(144)]
-pub struct BsUtf8SizeOp {
+pub struct BsUtf8Size {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1364,7 +1364,7 @@ pub struct BsUtf8SizeOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(145)]
-pub struct BsPutUtf8Op {
+pub struct BsPutUtf8 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1372,7 +1372,7 @@ pub struct BsPutUtf8Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(146)]
-pub struct BsUtf16SizeOp {
+pub struct BsUtf16Size {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1380,7 +1380,7 @@ pub struct BsUtf16SizeOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(147)]
-pub struct BsPutUtf16Op {
+pub struct BsPutUtf16 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1388,7 +1388,7 @@ pub struct BsPutUtf16Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(148)]
-pub struct BsPutUtf32Op {
+pub struct BsPutUtf32 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1396,23 +1396,23 @@ pub struct BsPutUtf32Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(149)]
-pub struct OnLoadOp {}
+pub struct OnLoad {}
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(150)]
-pub struct RecvMarkOp {
+pub struct RecvMark {
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(151)]
-pub struct RecvSetOp {
+pub struct RecvSet {
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(152)]
-pub struct GcBif3Op {
+pub struct GcBif3 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1424,13 +1424,13 @@ pub struct GcBif3Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(153)]
-pub struct LineOp {
+pub struct Line {
     pub literal: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(154)]
-pub struct PutMapAssocOp {
+pub struct PutMapAssoc {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1440,7 +1440,7 @@ pub struct PutMapAssocOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(155)]
-pub struct PutMapExactOp {
+pub struct PutMapExact {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1450,14 +1450,14 @@ pub struct PutMapExactOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(156)]
-pub struct IsMapOp {
+pub struct IsMap {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(157)]
-pub struct HasMapFieldsOp {
+pub struct HasMapFields {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1465,7 +1465,7 @@ pub struct HasMapFieldsOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(158)]
-pub struct GetMapElementOp {
+pub struct GetMapElement {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1473,8 +1473,8 @@ pub struct GetMapElementOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(159)]
-pub struct IsTaggedTupleOp {
-    pub label: Label,
+pub struct IsTaggedTuple {
+    pub label: term::Label,
     pub register: Register,
     pub arity: usize,
     pub atom: Atom,
@@ -1482,36 +1482,36 @@ pub struct IsTaggedTupleOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(160)]
-pub struct BuildStacktraceOp {}
+pub struct BuildStacktrace {}
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(161)]
-pub struct RawRaiseOp {}
+pub struct RawRaise {}
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(162)]
-pub struct GetHdOp {
+pub struct GetHd {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(163)]
-pub struct GetTlOp {
+pub struct GetTl {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(164)]
-pub struct PutTuple2Op {
+pub struct PutTuple2 {
     pub destination: Register,
     pub elements: List,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(165)]
-pub struct BsGetTailOp {
+pub struct BsGetTail {
     pub context: Term,
     pub destination: Register,
     pub live: usize,
@@ -1519,8 +1519,8 @@ pub struct BsGetTailOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(166)]
-pub struct BsStartMatch3Op {
-    pub fail: Label,
+pub struct BsStartMatch3 {
+    pub fail: term::Label,
     pub bin: Term,
     pub live: usize,
     pub destination: Register,
@@ -1528,7 +1528,7 @@ pub struct BsStartMatch3Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(167)]
-pub struct BsGetPositionOp {
+pub struct BsGetPosition {
     pub context: Term,
     pub destination: Register,
     pub live: usize,
@@ -1536,21 +1536,21 @@ pub struct BsGetPositionOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(168)]
-pub struct BsSetPositionOp {
+pub struct BsSetPosition {
     pub context: Term,
     pub position: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(169)]
-pub struct SwapOp {
+pub struct Swap {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(170)]
-pub struct BsStartMatch4Op {
+pub struct BsStartMatch4 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1559,7 +1559,7 @@ pub struct BsStartMatch4Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(171)]
-pub struct MakeFun3Op {
+pub struct MakeFun3 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1567,38 +1567,38 @@ pub struct MakeFun3Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(172)]
-pub struct InitYregsOp {
+pub struct InitYregs {
     pub registers: Vec<YRegister>,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(173)]
-pub struct RecvMarkerBindOp {
+pub struct RecvMarkerBind {
     pub arg1: Term,
     pub arg2: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(174)]
-pub struct RecvMarkerClearOp {
+pub struct RecvMarkerClear {
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(175)]
-pub struct RecvMarkerReserveOp {
+pub struct RecvMarkerReserve {
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(176)]
-pub struct RecvMarkerUseOp {
+pub struct RecvMarkerUse {
     pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(177)]
-pub struct BsCreateBinOp {
+pub struct BsCreateBin {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1609,7 +1609,7 @@ pub struct BsCreateBinOp {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(178)]
-pub struct CallFun2Op {
+pub struct CallFun2 {
     pub arg1: Term,
     pub arg2: Term,
     pub arg3: Term,
@@ -1617,10 +1617,10 @@ pub struct CallFun2Op {
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(179)]
-pub struct NifStartOp {}
+pub struct NifStart {}
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(180)]
-pub struct BadrecordOp {
+pub struct Badrecord {
     pub arg1: Term,
 }

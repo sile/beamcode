@@ -1,4 +1,4 @@
-use beamop::op::Op;
+use beamop::instruction::Instruction;
 use beamop::Decode;
 use clap::Parser;
 
@@ -12,16 +12,16 @@ fn main() -> anyhow::Result<()> {
     let beam = beam_file::StandardBeamFile::from_file(&args.beam_file_path)?;
     for chunk in beam.chunks {
         if let beam_file::chunk::StandardChunk::Code(chunk) = chunk {
-            let ops = beamop::decode_ops(&chunk.bytecode)?;
+            let instructions = beamop::decode_instructions(&chunk.bytecode)?;
             let mut reader = &chunk.bytecode[..];
-            for (i, op) in ops.into_iter().enumerate() {
+            for (i, instruction) in instructions.into_iter().enumerate() {
                 let start = chunk.bytecode.len() - reader.len();
-                let _ = Op::decode(&mut reader)?;
+                let _ = Instruction::decode(&mut reader)?;
                 let end = chunk.bytecode.len() - reader.len();
                 let expected = &chunk.bytecode[start..end];
 
-                let encoded = beamop::encode_ops(&[op.clone()])?;
-                assert_eq!(encoded, expected, "[{}] {:?}", i, op);
+                let encoded = beamop::encode_instructions(&[instruction.clone()])?;
+                assert_eq!(encoded, expected, "[{}] {:?}", i, instruction);
             }
             return Ok(());
         }
