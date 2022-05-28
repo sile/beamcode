@@ -73,7 +73,7 @@ pub enum Term {
     YRegister(YRegister),
     Label(Label),
     List(List),
-    ExtendedLiteral(ExtendedLiteral),
+    Literal(Literal),
     // TODO: Alloc List, etc
 }
 
@@ -91,7 +91,7 @@ impl Decode for Term {
             TermKind::FloatingPointRegister => todo!(),
             TermKind::AllocationList => todo!(),
             TermKind::TypedRegister => todo!(),
-            TermKind::Literal => Decode::decode_with_tag(reader, tag).map(Self::ExtendedLiteral),
+            TermKind::Literal => Decode::decode_with_tag(reader, tag).map(Self::Literal),
             TermKind::Unknown => Err(DecodeError::UnknownTermTag { tag }),
         }
     }
@@ -153,11 +153,11 @@ impl Encode for usize {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ExtendedLiteral {
+pub struct Literal {
     pub value: usize,
 }
 
-impl Decode for ExtendedLiteral {
+impl Decode for Literal {
     fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         TermKind::from_tag(tag).expect(&[TermKind::Literal])?;
         Ok(Self {
@@ -166,7 +166,7 @@ impl Decode for ExtendedLiteral {
     }
 }
 
-impl Encode for ExtendedLiteral {
+impl Encode for Literal {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
         writer.write_u8(TAG_Z | 0b0100_0000)?;
         self.value.encode(writer)
