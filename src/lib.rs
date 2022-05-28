@@ -1,5 +1,5 @@
 use crate::op::Op;
-use crate::term::{Term, TermKind};
+use crate::term::TermKind;
 use beamop_derive::{Decode, Encode, Opcode};
 use std::io::{Read, Write};
 
@@ -38,16 +38,7 @@ pub enum DecodeError {
     TooLargeUsizeValue { byte_size: usize },
 
     #[error(transparent)]
-    ConvertTermError(#[from] crate::term::ConvertTermError),
-
-    #[error(transparent)]
     IoError(#[from] std::io::Error),
-}
-
-impl From<std::convert::Infallible> for DecodeError {
-    fn from(_: std::convert::Infallible) -> Self {
-        unreachable!()
-    }
 }
 
 #[derive(Debug, thiserror::Error)]

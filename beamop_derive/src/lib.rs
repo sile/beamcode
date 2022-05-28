@@ -63,7 +63,7 @@ fn generate_decode_fun_body(data: &Data) -> TokenStream {
             Fields::Named(ref fields) => {
                 let decode = fields.named.iter().map(|f| {
                     let name = &f.ident;
-                    quote_spanned! { f.span() => #name: crate::Term::decode(reader)?.try_into()? }
+                    quote_spanned! { f.span() => #name: crate::Decode::decode(reader)? }
                 });
                 quote! {
                     use byteorder::ReadBytesExt as _;
