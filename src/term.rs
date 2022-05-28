@@ -17,52 +17,60 @@ pub enum TermKind {
     AllocationList,
     Literal,
     TypedRegister,
-    Unknown,
+    Unknown(u8),
 }
 
 impl TermKind {
     fn from_tag(tag: u8) -> Self {
         match tag & 0b111 {
-            TAG_U => Self::Usize,
-            TAG_I => Self::Integer,
-            TAG_A => Self::Atom,
-            TAG_X => Self::XRegister,
-            TAG_Y => Self::YRegister,
-            TAG_F => Self::Label,
-            TAG_H => Self::Character,
-            TAG_Z => match tag >> 4 {
+            0 => Self::Usize,
+            1 => Self::Integer,
+            2 => Self::Atom,
+            3 => Self::XRegister,
+            4 => Self::YRegister,
+            5 => Self::Label,
+            6 => Self::Character,
+            7 => match tag >> 4 {
                 0b0001 => Self::List,
                 0b0010 => Self::FloatingPointRegister,
                 0b0011 => Self::AllocationList,
                 0b0100 => Self::Literal,
                 0b0101 => Self::TypedRegister,
-                _ => Self::Unknown,
+                _ => Self::Unknown(tag),
             },
             _ => unreachable!(),
         }
     }
 
-    fn expect(&self, expected: &[Self]) -> Result<(), DecodeError> {
-        if expected.iter().any(|x| x == self) {
+    fn expect(self, expected: &[Self]) -> Result<(), DecodeError> {
+        if expected.iter().any(|&x| x == self) {
             Ok(())
         } else {
             Err(DecodeError::UnexpectedTerm {
                 expected: expected.to_owned(),
-                actual: *self,
+                actual: self,
             })
         }
     }
-}
 
-// TODO: remove?
-const TAG_U: u8 = 0; // Literal
-const TAG_I: u8 = 1; // Integer
-const TAG_A: u8 = 2; // Atom
-const TAG_X: u8 = 3; // X regsiter
-const TAG_Y: u8 = 4; // Y register
-const TAG_F: u8 = 5; // Label
-const TAG_H: u8 = 6; // Character
-const TAG_Z: u8 = 7; // Extended
+    const fn tag(self) -> u8 {
+        match self {
+            Self::Usize => 0,
+            Self::Integer => 1,
+            Self::Atom => 2,
+            Self::XRegister => 3,
+            Self::YRegister => 4,
+            Self::Label => 5,
+            Self::Character => 6,
+            Self::List => 0b0001_0111,
+            Self::FloatingPointRegister => 0b0010_0111,
+            Self::AllocationList => 0b0011_0111,
+            Self::Literal => 0b0100_0111,
+            Self::TypedRegister => 0b0101_0111,
+            Self::Unknown(tag) => tag,
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Encode)]
 pub enum Term {
@@ -74,6 +82,7 @@ pub enum Term {
     Label(Label),
     List(List),
     Literal(Literal),
+    TypedRegister(TypedRegister),
     // TODO: Alloc List, etc
 }
 
@@ -90,10 +99,54 @@ impl Decode for Term {
             TermKind::List => Decode::decode_with_tag(reader, tag).map(Self::List),
             TermKind::FloatingPointRegister => todo!(),
             TermKind::AllocationList => todo!(),
-            TermKind::TypedRegister => todo!(),
+            TermKind::TypedRegister => {
+                Decode::decode_with_tag(reader, tag).map(Self::TypedRegister)
+            }
             TermKind::Literal => Decode::decode_with_tag(reader, tag).map(Self::Literal),
-            TermKind::Unknown => Err(DecodeError::UnknownTermTag { tag }),
+            TermKind::Unknown(_) => Err(DecodeError::UnknownTermTag { tag }),
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum TypedRegister {
+    X { register: XRegister, ty: usize },
+    Y { register: YRegister, ty: usize },
+}
+
+impl Decode for TypedRegister {
+    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
+        TermKind::from_tag(tag).expect(&[TermKind::TypedRegister])?;
+
+        let tag = reader.read_u8()?;
+        let kind = TermKind::from_tag(tag);
+        kind.expect(&[TermKind::XRegister, TermKind::YRegister])?;
+        if kind == TermKind::XRegister {
+            let register = XRegister::decode_with_tag(reader, tag)?;
+            let ty = usize::decode(reader)?;
+            Ok(Self::X { register, ty })
+        } else {
+            let register = YRegister::decode_with_tag(reader, tag)?;
+            let ty = usize::decode(reader)?;
+            Ok(Self::Y { register, ty })
+        }
+    }
+}
+
+impl Encode for TypedRegister {
+    fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
+        writer.write_u8(TermKind::TypedRegister.tag())?;
+        match self {
+            Self::X { register, ty } => {
+                register.encode(writer)?;
+                ty.encode(writer)?;
+            }
+            Self::Y { register, ty } => {
+                register.encode(writer)?;
+                ty.encode(writer)?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -101,40 +154,24 @@ impl Decode for Term {
 pub enum Register {
     X(XRegister),
     Y(YRegister),
-}
-
-impl From<Register> for Term {
-    fn from(v: Register) -> Self {
-        match v {
-            Register::X(v) => Term::XRegister(v),
-            Register::Y(v) => Term::YRegister(v),
-        }
-    }
+    Typed(TypedRegister),
 }
 
 impl Decode for Register {
     fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
-        todo!()
-        // let tag = reader.read_u8()?;
-        // match tag & 0b111 {
-        //     TAG_X => XRegister::decode(&mut once(tag).chain(reader)).map(Self::X),
-        //     TAG_Y => YRegister::decode(&mut once(tag).chain(reader)).map(Self::Y),
-        //     TAG_Z if tag >> 4 == 0b0101 => {
-        //         let tag = reader.read_u8()?;
-        //         let mut register = match tag & 0b111 {
-        //             TAG_X => XRegister::decode(&mut once(tag).chain(&mut reader)).map(Self::X)?,
-        //             TAG_Y => YRegister::decode(&mut once(tag).chain(&mut reader)).map(Self::Y)?,
-        //             _ => return Err(DecodeError::UnknownTermTag { tag }),
-        //         };
-        //         let ty = Literal::decode(&mut reader)?;
-        //         match &mut register {
-        //             Self::X(r) => r.ty = Some(ty.value),
-        //             Self::Y(r) => r.ty = Some(ty.value),
-        //         };
-        //         Ok(register)
-        //     }
-        //     _ => Err(DecodeError::UnknownTermTag { tag }),
-        // }
+        match TermKind::from_tag(tag) {
+            TermKind::XRegister => Decode::decode_with_tag(reader, tag).map(Self::X),
+            TermKind::YRegister => Decode::decode_with_tag(reader, tag).map(Self::Y),
+            TermKind::TypedRegister => Decode::decode_with_tag(reader, tag).map(Self::Typed),
+            actual => Err(DecodeError::UnexpectedTerm {
+                actual,
+                expected: vec![
+                    TermKind::XRegister,
+                    TermKind::YRegister,
+                    TermKind::TypedRegister,
+                ],
+            }),
+        }
     }
 }
 
@@ -148,7 +185,7 @@ impl Decode for usize {
 
 impl Encode for usize {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        encode_usize(TAG_U, *self, writer)
+        encode_usize(TermKind::Usize.tag(), *self, writer)
     }
 }
 
@@ -168,7 +205,7 @@ impl Decode for Literal {
 
 impl Encode for Literal {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        writer.write_u8(TAG_Z | 0b0100_0000)?;
+        writer.write_u8(TermKind::Literal.tag())?;
         self.value.encode(writer)
     }
 }
@@ -183,7 +220,7 @@ impl Decode for BigInt {
 
 impl Encode for BigInt {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        encode_integer(TAG_I, self, writer)
+        encode_integer(TermKind::Integer.tag(), self, writer)
     }
 }
 
@@ -203,7 +240,7 @@ impl Decode for Atom {
 
 impl Encode for Atom {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        encode_usize(TAG_A, self.value, writer)
+        encode_usize(TermKind::Atom.tag(), self.value, writer)
     }
 }
 
@@ -224,16 +261,9 @@ impl Decode for XRegister {
 
 impl Encode for XRegister {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        encode_usize(TAG_X, self.value, writer)
+        encode_usize(TermKind::XRegister.tag(), self.value, writer)
     }
 }
-
-// TODO
-// #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-// pub struct TypedXRegister {
-//     pub value: usize,
-//     pub ty: usize,
-// }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct YRegister {
@@ -252,7 +282,7 @@ impl Decode for YRegister {
 
 impl Encode for YRegister {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        encode_usize(TAG_Y, self.value, writer)
+        encode_usize(TermKind::YRegister.tag(), self.value, writer)
     }
 }
 
@@ -288,7 +318,7 @@ impl Decode for Label {
 
 impl Encode for Label {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        encode_usize(TAG_F, self.value, writer)
+        encode_usize(TermKind::Label.tag(), self.value, writer)
     }
 }
 
@@ -311,7 +341,7 @@ impl<T: Decode> Decode for List<T> {
 
 impl<T: Encode> Encode for List<T> {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        writer.write_u8(TAG_Z | 0b0001_0000)?;
+        writer.write_u8(TermKind::List.tag())?;
         self.elements.len().encode(writer)?;
         for x in &self.elements {
             x.encode(writer)?;
