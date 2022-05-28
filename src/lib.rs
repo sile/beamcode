@@ -1,5 +1,5 @@
 use crate::op::Op;
-use crate::term::Term;
+use crate::term::{Term, TermKind};
 use beamop_derive::{Decode, Encode, Opcode};
 use std::io::{Read, Write};
 
@@ -24,6 +24,12 @@ const USIZE_BYTES: u32 = usize::BITS / 8;
 pub enum DecodeError {
     #[error("unknown term tag: {tag}")]
     UnknownTermTag { tag: u8 },
+
+    #[error("unexpected term: expected={expected:?}, actual={actual:?}")]
+    UnexpectedTerm {
+        expected: Vec<TermKind>,
+        actual: TermKind,
+    },
 
     #[error("unknown opcode: {opcode}")]
     UnknownOpcode { opcode: u8 },

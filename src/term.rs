@@ -33,7 +33,47 @@ pub enum ConvertTermError {
     NotExtendedLiteral { term: Term },
 }
 
-// From beam_opcodes.hrl file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TermKind {
+    Usize,
+    Integer,
+    Atom,
+    XRegister,
+    YRegister,
+    Label,
+    Character,
+    List,
+    FloatingPointRegister,
+    AllocationList,
+    Literal,
+    TypedRegister,
+    Unknown,
+}
+
+impl TermKind {
+    pub fn from_tag(tag: u8) -> Self {
+        match tag & 0b111 {
+            TAG_U => Self::Usize,
+            TAG_I => Self::Integer,
+            TAG_A => Self::Atom,
+            TAG_X => Self::XRegister,
+            TAG_Y => Self::YRegister,
+            TAG_F => Self::Label,
+            TAG_H => Self::Character,
+            TAG_Z => match tag >> 4 {
+                0b0001 => Self::List,
+                0b0010 => Self::FloatingPointRegister,
+                0b0011 => Self::AllocationList,
+                0b0100 => Self::Literal,
+                0b0101 => Self::TypedRegister,
+                _ => Self::Unknown,
+            },
+            _ => unreachable!(),
+        }
+    }
+}
+
+// TODO: remove?
 const TAG_U: u8 = 0; // Literal
 const TAG_I: u8 = 1; // Integer
 const TAG_A: u8 = 2; // Atom
@@ -179,6 +219,23 @@ pub enum Source {
     Literal(Literal),
     Integer(Integer),
     Atom(Atom),
+}
+
+impl Decode for usize {
+    fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {
+        let tag = reader.read_u8()?;
+        if tag & 0b111 != TAG_U {
+            return Err(DecodeError::UnknownTermTag { tag });
+        }
+        let value = decode_usize(tag, reader)?;
+        Ok(value)
+    }
+}
+
+impl Encode for usize {
+    fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
+        encode_usize(TAG_U, *self, writer)
+    }
 }
 
 // TODO: impl Decode
@@ -346,6 +403,12 @@ impl TryFrom<Term> for XRegister {
     }
 }
 
+// #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+// pub struct TypedXRegister {
+//     pub value: usize,
+//     pub ty: usize,
+// }
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct YRegister {
     pub value: usize,
@@ -464,6 +527,7 @@ impl TryFrom<Term> for List {
     }
 }
 
+// TODO: rename
 fn decode_usize<R: Read>(tag: u8, reader: &mut R) -> Result<usize, DecodeError> {
     if (tag & 0b1_000) == 0 {
         Ok((tag >> 4) as usize)
@@ -483,6 +547,7 @@ fn decode_usize<R: Read>(tag: u8, reader: &mut R) -> Result<usize, DecodeError> 
     }
 }
 
+// TODO: rename
 fn encode_usize<W: Write>(tag: u8, value: usize, writer: &mut W) -> Result<(), EncodeError> {
     if value < 16 {
         writer.write_u8((value << 4) as u8 | tag)?;
