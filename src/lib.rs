@@ -22,7 +22,7 @@ const USIZE_BYTES: u32 = usize::BITS / 8;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DecodeError {
-    #[error("unknown compact term tag: {tag}")]
+    #[error("unknown term tag: {tag}")]
     UnknownTermTag { tag: u8 },
 
     #[error("unknown opcode: {opcode}")]
