@@ -7,7 +7,7 @@
 //! - erlang/otp/lib/compiler/src/beam_opcodes.erl (generated file)
 use crate::term::{self, Allocation, Atom, List, Register, Term, YRegister};
 use crate::{Decode, Encode};
-use beamop_derive::Opcode;
+use beamcode_derive::Opcode;
 
 pub trait Opcode {
     const CODE: u8;

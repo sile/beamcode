@@ -10,7 +10,7 @@ fn main() -> anyhow::Result<()> {
     let beam = beam_file::StandardBeamFile::from_file(&args.beam_file_path)?;
     for chunk in beam.chunks {
         if let beam_file::chunk::StandardChunk::Code(chunk) = chunk {
-            for instruction in beamop::decode_instructions(&chunk.bytecode)? {
+            for instruction in beamcode::decode_instructions(&chunk.bytecode)? {
                 println!("{:?}", instruction);
             }
             return Ok(());

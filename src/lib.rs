@@ -5,7 +5,7 @@
 //! - [The BEAM Book - Generic BEAM Instructions](https://blog.stenmans.org/theBeamBook/#CH-Instructions)
 use crate::instruction::Instruction;
 use crate::term::TermKind;
-use beamop_derive::{Decode, Encode};
+use beamcode_derive::{Decode, Encode};
 use byteorder::ReadBytesExt as _;
 use num::BigInt;
 use std::io::{Read, Write};
