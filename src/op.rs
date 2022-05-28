@@ -1,4 +1,4 @@
-use crate::term::{Atom, Label, List, Literal, Register, Term, YRegister};
+use crate::term::{Atom, Label, List, Register, Term, YRegister};
 use crate::{Decode, Encode, Opcode};
 
 // TODO: remove deprecated
@@ -189,7 +189,7 @@ pub enum Op {
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(1)]
 pub struct LabelOp {
-    pub literal: Literal,
+    pub literal: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
@@ -197,7 +197,7 @@ pub struct LabelOp {
 pub struct FuncInfoOp {
     pub module: Atom,
     pub function: Atom,
-    pub arity: Literal,
+    pub arity: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
@@ -207,7 +207,7 @@ pub struct IntCodeEndOp {}
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(4)]
 pub struct CallOp {
-    pub arity: Literal,
+    pub arity: usize,
     pub label: Label,
 }
 
@@ -222,23 +222,23 @@ pub struct CallLastOp {
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(6)]
 pub struct CallOnlyOp {
-    pub arity: Literal,
+    pub arity: usize,
     pub label: Label,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(7)]
 pub struct CallExtOp {
-    pub arity: Literal,
-    pub destination: Literal, // TODO: s/Literal/ImportTableIndex/
+    pub arity: usize,
+    pub destination: usize, // TODO: s/Literal/ImportTableIndex/
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(8)]
 pub struct CallExtLastOp {
-    pub arity: Literal,
-    pub destination: Literal, // TODO: s/Literal/ImportTableIndex/
-    pub deallocate: Literal,
+    pub arity: usize,
+    pub destination: usize, // TODO: s/Literal/ImportTableIndex/
+    pub deallocate: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
@@ -270,16 +270,16 @@ pub struct Bif2Op {
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(12)]
 pub struct AllocateOp {
-    pub stack_need: Literal,
-    pub live: Literal,
+    pub stack_need: usize,
+    pub live: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(13)]
 pub struct AllocateHeapOp {
-    pub stack_need: Literal,
-    pub heap_need: Literal,
-    pub live: Literal,
+    pub stack_need: usize,
+    pub heap_need: usize,
+    pub live: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
@@ -292,16 +292,16 @@ pub struct AllocateZeroOp {
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(15)]
 pub struct AllocateHeapZeroOp {
-    pub stack_need: Literal,
-    pub heap_need: Literal,
-    pub live: Literal,
+    pub stack_need: usize,
+    pub heap_need: usize,
+    pub live: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(16)]
 pub struct TestHeapOp {
-    pub heap_need: Literal,
-    pub live: Literal,
+    pub heap_need: usize,
+    pub live: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
@@ -313,7 +313,7 @@ pub struct InitOp {
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(18)]
 pub struct DeallocateOp {
-    pub n: Literal,
+    pub n: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
@@ -609,7 +609,7 @@ pub struct IsTupleOp {
 pub struct TestArityOp {
     pub label: Label,
     pub arg1: Term,
-    pub arity: Literal,
+    pub arity: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
@@ -666,7 +666,7 @@ pub struct GetListOp {
 #[opcode(66)]
 pub struct GetTupleElementOp {
     pub source: Register,
-    pub element: Literal,
+    pub element: usize,
     pub destination: Register,
 }
 
@@ -747,8 +747,8 @@ pub struct IsFunctionOp {
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(78)]
 pub struct CallExtOnlyOp {
-    pub arity: Literal,
-    pub destination: Literal, // TODO: s/Literal/ImportTableIndex/
+    pub arity: usize,
+    pub destination: usize, // TODO: s/Literal/ImportTableIndex/
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
@@ -1360,7 +1360,7 @@ pub struct GcBif3Op {
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(153)]
 pub struct LineOp {
-    pub literal: Literal,
+    pub literal: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
@@ -1411,7 +1411,7 @@ pub struct GetMapElementOp {
 pub struct IsTaggedTupleOp {
     pub label: Label,
     pub register: Register,
-    pub arity: Literal,
+    pub arity: usize,
     pub atom: Atom,
 }
 
@@ -1449,7 +1449,7 @@ pub struct PutTuple2Op {
 pub struct BsGetTailOp {
     pub context: Term,
     pub destination: Register,
-    pub live: Literal,
+    pub live: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
@@ -1457,7 +1457,7 @@ pub struct BsGetTailOp {
 pub struct BsStartMatch3Op {
     pub fail: Label,
     pub bin: Term,
-    pub live: Literal,
+    pub live: usize,
     pub destination: Register,
 }
 
@@ -1466,7 +1466,7 @@ pub struct BsStartMatch3Op {
 pub struct BsGetPositionOp {
     pub context: Term,
     pub destination: Register,
-    pub live: Literal,
+    pub live: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]

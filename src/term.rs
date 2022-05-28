@@ -66,7 +66,7 @@ const TAG_Z: u8 = 7; // Extended
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Encode)]
 pub enum Term {
-    Literal(Literal),
+    Usize(usize),
     Integer(Integer),
     Atom(Atom),
     XRegister(XRegister),
@@ -80,7 +80,7 @@ pub enum Term {
 impl Decode for Term {
     fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         match TermKind::from_tag(tag) {
-            TermKind::Usize => Literal::decode_with_tag(reader, tag).map(Self::Literal),
+            TermKind::Usize => Decode::decode_with_tag(reader, tag).map(Self::Usize),
             TermKind::Integer => Integer::decode_with_tag(reader, tag).map(Self::Integer),
             TermKind::Atom => Atom::decode_with_tag(reader, tag).map(Self::Atom),
             TermKind::XRegister => XRegister::decode_with_tag(reader, tag).map(Self::XRegister),
@@ -140,15 +140,6 @@ impl Decode for Register {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Source {
-    XRegister(XRegister),
-    YRegister(YRegister),
-    Literal(Literal),
-    Integer(Integer),
-    Atom(Atom),
-}
-
 impl Decode for usize {
     fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         TermKind::from_tag(tag).expect(&[TermKind::Usize])?;
@@ -163,27 +154,6 @@ impl Encode for usize {
     }
 }
 
-// TODO: impl Decode
-// TODO(?): s/Literal/Usize/
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Literal {
-    pub value: usize,
-}
-
-impl Decode for Literal {
-    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
-        Ok(Self {
-            value: usize::decode_with_tag(reader, tag)?,
-        })
-    }
-}
-
-impl Encode for Literal {
-    fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
-        encode_usize(TAG_U, self.value, writer)
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ExtendedLiteral {
     pub value: usize,
@@ -192,10 +162,8 @@ pub struct ExtendedLiteral {
 impl Decode for ExtendedLiteral {
     fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         TermKind::from_tag(tag).expect(&[TermKind::Literal])?;
-
-        let literal = Literal::decode(reader)?;
         Ok(Self {
-            value: literal.value,
+            value: usize::decode(reader)?,
         })
     }
 }
@@ -203,8 +171,7 @@ impl Decode for ExtendedLiteral {
 impl Encode for ExtendedLiteral {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
         writer.write_u8(TAG_Z | 0b0100_0000)?;
-        let literal = Literal { value: self.value };
-        literal.encode(writer)
+        self.value.encode(writer)
     }
 }
 
@@ -342,7 +309,7 @@ impl<T: Decode> Decode for List<T> {
     fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         TermKind::from_tag(tag).expect(&[TermKind::List])?;
 
-        let size = Literal::decode(reader)?.value;
+        let size = usize::decode(reader)?;
         let elements = (0..size)
             .map(|_| T::decode(reader))
             .collect::<Result<_, _>>()?;
@@ -353,10 +320,7 @@ impl<T: Decode> Decode for List<T> {
 impl<T: Encode> Encode for List<T> {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
         writer.write_u8(TAG_Z | 0b0001_0000)?;
-        let size = Literal {
-            value: self.elements.len(),
-        };
-        size.encode(writer)?;
+        self.elements.len().encode(writer)?;
         for x in &self.elements {
             x.encode(writer)?;
         }
@@ -379,7 +343,7 @@ fn decode_usize<R: Read>(tag: u8, reader: &mut R) -> Result<usize, DecodeError> 
             Ok(reader.read_uint::<BigEndian>(byte_size)? as usize)
         }
     } else {
-        let byte_size = Literal::decode(reader)?.value;
+        let byte_size = usize::decode(reader)?;
         Err(DecodeError::TooLargeUsizeValue { byte_size })
     }
 }
@@ -410,7 +374,7 @@ fn decode_integer<R: Read>(tag: u8, reader: &mut R) -> Result<BigInt, DecodeErro
         reader.read_exact(&mut buf)?;
         Ok(BigInt::from_signed_bytes_be(&buf))
     } else {
-        let byte_size = Literal::decode(reader)?.value;
+        let byte_size = usize::decode(reader)?;
         let mut buf = vec![0; byte_size];
         reader.read_exact(&mut buf)?;
         Ok(BigInt::from_signed_bytes_be(&buf))
@@ -452,10 +416,7 @@ fn encode_num_bytes<W: Write>(tag: u8, bytes: &[u8], writer: &mut W) -> Result<(
         }
     } else {
         writer.write_u8(tag | 0b1111_1000)?;
-        let size = Literal {
-            value: bytes.len() - 8,
-        };
-        size.encode(writer)?;
+        (bytes.len() - 8).encode(writer)?;
         writer.write_all(bytes)?;
     }
     Ok(())
