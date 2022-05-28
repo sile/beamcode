@@ -1,7 +1,18 @@
+//! BEAM operations (a.k.a. instructions).
+//!
+//! # References
+//!
+//! - [The BEAM Book - Generic Instructions](https://blog.stenmans.org/theBeamBook/#_generic_instructions)
+//! - [erlang/otp/lib/compiler/src/genop.tab](https://github.com/erlang/otp/blob/master/lib/compiler/src/genop.tab)
+//! - erlang/otp/lib/compiler/src/beam_opcodes.erl (generated file)
 use crate::term::{Allocation, Atom, Label, List, Register, Term, YRegister};
-use crate::{Decode, Encode, Opcode};
+use crate::{Decode, Encode};
+use beamop_derive::Opcode;
 
-// TODO: remove deprecated
+pub trait Opcode {
+    const CODE: u8;
+}
+
 #[derive(Debug, Clone, Decode, Encode)]
 pub enum Op {
     Allocate(AllocateOp),
@@ -17,16 +28,23 @@ pub enum Op {
     Bif2(Bif2Op),
     BsAdd(BsAddOp),
     BsAppend(BsAppendOp),
+    /// Deprecated.
     BsBitsToBytes(BsBitsToBytesOp),
+    /// Deprecated.
     BsBitsToBytes2(BsBitsToBytes2Op),
     BsContextToBinary(BsContextToBinaryOp),
     BsCreateBin(BsCreateBinOp),
+    /// Deprecated.
     BsFinal(BsFinalOp),
+    /// Deprecated.
     BsFinal2(BsFinal2Op),
+    /// Deprecated.
     BsGetBinary(BsGetBinaryOp),
     BsGetBinary2(BsGetBinary2Op),
+    /// Deprecated.
     BsGetFloat(BsGetFloatOp),
     BsGetFloat2(BsGetFloat2Op),
+    /// Deprecated.
     BsGetInteger(BsGetIntegerOp),
     BsGetInteger2(BsGetInteger2Op),
     BsGetPosition(BsGetPositionOp),
@@ -34,6 +52,7 @@ pub enum Op {
     BsGetUtf16(BsGetUtf16Op),
     BsGetUtf32(BsGetUtf32Op),
     BsGetUtf8(BsGetUtf8Op),
+    /// Deprecated.
     BsInit(BsInitOp),
     BsInit2(BsInit2Op),
     BsInitBits(BsInitBitsOp),
@@ -48,6 +67,7 @@ pub enum Op {
     BsPutUtf32(BsPutUtf32Op),
     BsPutUtf16(BsPutUtf16Op),
     BsPutUtf8(BsPutUtf8Op),
+    /// Deprecated.
     BsRestore(BsRestoreOp),
     BsRestore2(BsRestore2Op),
     BsSave(BsSaveOp),
@@ -58,10 +78,12 @@ pub enum Op {
     BsSkipUtf32(BsSkipUtf32Op),
     BsSkipUtf16(BsSkipUtf16Op),
     BsSkipUtf8(BsSkipUtf8Op),
+    /// Deprecated.
     BsStartMatch(BsStartMatchOp),
     BsStartMatch2(BsStartMatch2Op),
     BsStartMatch3(BsStartMatch3Op),
     BsStartMatch4(BsStartMatch4Op),
+    /// Deprecated.
     BsTestTail(BsTestTailOp),
     BsTestTail2(BsTestTail2Op),
     BsTestUnit(BsTestUnitOp),
@@ -102,19 +124,28 @@ pub enum Op {
     IfEnd(IfEndOp),
     Init(InitOp),
     InitYregs(InitYregsOp),
+    /// Deprecated.
     IntBand(IntBandOp),
+    /// Deprecated.
     IntBnot(IntBnotOp),
+    /// Deprecated.
     IntBor(IntBorOp),
+    /// Deprecated.
     IntBsl(IntBslOp),
+    /// Deprecated.
     IntBsr(IntBsrOp),
+    /// Deprecated.
     IntBxor(IntBxorOp),
     IntCodeEnd(IntCodeEndOp),
+    /// Deprecated.
     IntDiv(IntDivOp),
+    /// Deprecated.
     IntRem(IntRemOp),
     IsAtom(IsAtomOp),
     IsBinary(IsBinaryOp),
     IsBitstr(IsBitstrOp),
     IsBoolean(IsBooleanOp),
+    /// Deprecated.
     IsConstant(IsConstantOp),
     IsEq(IsEqOp),
     IsEqExact(IsEqExactOp),
@@ -141,21 +172,28 @@ pub enum Op {
     Line(LineOp),
     LoopRec(LoopRecOp),
     LoopRecEnd(LoopRecEndOp),
+    /// Deprecated.
     MakeFun(MakeFunOp),
     MakeFun2(MakeFun2Op),
     MakeFun3(MakeFun3Op),
+    /// Deprecated.
     MDiv(MDivOp),
     Move(MoveOp),
+    /// Deprecated.
     MPlus(MPlusOp),
+    /// Deprecated.
     MMinus(MMinusOp),
+    /// Deprecated.
     MTimes(MTimesOp),
     NifStart(NifStartOp),
     OnLoad(OnLoadOp),
     Put(PutOp),
     PutList(PutListOp),
+    /// Deprecated.
     PutLiteral(PutLiteralOp),
     PutMapAssoc(PutMapAssocOp),
     PutMapExact(PutMapExactOp),
+    /// Deprecated.
     PutString(PutStringOp),
     PutTuple(PutTupleOp),
     PutTuple2(PutTuple2Op),
@@ -230,14 +268,14 @@ pub struct CallOnlyOp {
 #[opcode(7)]
 pub struct CallExtOp {
     pub arity: usize,
-    pub destination: usize, // TODO: s/Literal/ImportTableIndex/
+    pub destination: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(8)]
 pub struct CallExtLastOp {
     pub arity: usize,
-    pub destination: usize, // TODO: s/Literal/ImportTableIndex/
+    pub destination: usize,
     pub deallocate: usize,
 }
 
@@ -358,6 +396,7 @@ pub struct WaitTimeoutOp {
     pub arg2: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(27)]
 pub struct MPlusOp {
@@ -367,6 +406,7 @@ pub struct MPlusOp {
     pub arg4: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(28)]
 pub struct MMinusOp {
@@ -376,6 +416,7 @@ pub struct MMinusOp {
     pub arg4: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(29)]
 pub struct MTimesOp {
@@ -385,6 +426,7 @@ pub struct MTimesOp {
     pub arg4: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(30)]
 pub struct MDivOp {
@@ -394,6 +436,7 @@ pub struct MDivOp {
     pub arg4: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(31)]
 pub struct IntDivOp {
@@ -403,6 +446,7 @@ pub struct IntDivOp {
     pub arg4: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(32)]
 pub struct IntRemOp {
@@ -412,6 +456,7 @@ pub struct IntRemOp {
     pub arg4: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(33)]
 pub struct IntBandOp {
@@ -421,6 +466,7 @@ pub struct IntBandOp {
     pub arg4: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(34)]
 pub struct IntBorOp {
@@ -430,6 +476,7 @@ pub struct IntBorOp {
     pub arg4: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(35)]
 pub struct IntBxorOp {
@@ -439,6 +486,7 @@ pub struct IntBxorOp {
     pub arg4: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(36)]
 pub struct IntBslOp {
@@ -448,6 +496,7 @@ pub struct IntBslOp {
     pub arg4: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(37)]
 pub struct IntBsrOp {
@@ -457,6 +506,7 @@ pub struct IntBsrOp {
     pub arg4: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(38)]
 pub struct IntBnotOp {
@@ -576,6 +626,7 @@ pub struct IsBinaryOp {
     pub arg1: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(54)]
 pub struct IsConstantOp {
@@ -617,7 +668,7 @@ pub struct TestArityOp {
 pub struct SelectValOp {
     pub arg: Term,
     pub fail_label: Label,
-    pub destinations: List, // TODO: AssocList
+    pub destinations: List,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
@@ -678,6 +729,7 @@ pub struct SetTupleElementOp {
     pub arg3: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(68)]
 pub struct PutStringOp {
@@ -710,7 +762,7 @@ pub struct PutOp {
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(72)]
 pub struct BadmatchOp {
-    pub arg1: Term, // TODO
+    pub arg1: Term,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
@@ -729,6 +781,7 @@ pub struct CallFunOp {
     pub arg1: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(76)]
 pub struct MakeFunOp {
@@ -748,9 +801,10 @@ pub struct IsFunctionOp {
 #[opcode(78)]
 pub struct CallExtOnlyOp {
     pub arity: usize,
-    pub destination: usize, // TODO: s/Literal/ImportTableIndex/
+    pub destination: usize,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(79)]
 pub struct BsStartMatchOp {
@@ -758,6 +812,7 @@ pub struct BsStartMatchOp {
     pub arg2: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(80)]
 pub struct BsGetIntegerOp {
@@ -768,6 +823,7 @@ pub struct BsGetIntegerOp {
     pub arg5: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(81)]
 pub struct BsGetFloatOp {
@@ -778,6 +834,7 @@ pub struct BsGetFloatOp {
     pub arg5: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(82)]
 pub struct BsGetBinaryOp {
@@ -797,6 +854,7 @@ pub struct BsSkipBitsOp {
     pub arg4: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(84)]
 pub struct BsTestTailOp {
@@ -810,12 +868,14 @@ pub struct BsSaveOp {
     pub arg1: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(86)]
 pub struct BsRestoreOp {
     pub arg1: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(87)]
 pub struct BsInitOp {
@@ -823,6 +883,7 @@ pub struct BsInitOp {
     pub arg2: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(88)]
 pub struct BsFinalOp {
@@ -990,6 +1051,7 @@ pub struct BsInit2Op {
     pub arg6: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(110)]
 pub struct BsBitsToBytesOp {
@@ -1135,6 +1197,7 @@ pub struct GcBif2Op {
     pub arg6: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(126)]
 pub struct BsFinal2Op {
@@ -1142,6 +1205,7 @@ pub struct BsFinal2Op {
     pub arg2: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(127)]
 pub struct BsBitsToBytes2Op {
@@ -1149,6 +1213,7 @@ pub struct BsBitsToBytes2Op {
     pub arg2: Term,
 }
 
+/// Deprecated.
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(128)]
 pub struct PutLiteralOp {

@@ -1,16 +1,12 @@
 use crate::op::Op;
 use crate::term::TermKind;
-use beamop_derive::{Decode, Encode, Opcode};
+use beamop_derive::{Decode, Encode};
 use byteorder::ReadBytesExt as _;
 use num::BigInt;
 use std::io::{Read, Write};
 
 pub mod op;
 pub mod term;
-
-pub trait Opcode {
-    const CODE: u8;
-}
 
 pub trait Decode: Sized {
     fn decode<R: Read>(reader: &mut R) -> Result<Self, DecodeError> {

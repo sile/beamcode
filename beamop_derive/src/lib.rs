@@ -7,10 +7,9 @@ use syn::{parse_macro_input, Data, DeriveInput, Fields};
 pub fn derive_opcode_trait(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
-    assert_eq!(input.attrs.len(), 1);
-    let code = &input.attrs[0].tokens;
+    let code = &input.attrs.last().expect("missing `#[opcode(N)]`").tokens;
     let expanded = quote! {
-        impl crate::Opcode for #name {
+        impl crate::op::Opcode for #name {
             const CODE: u8 = #code;
         }
     };
