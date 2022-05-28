@@ -526,23 +526,8 @@ fn encode_integer_bytes<W: Write>(
     assert!(bytes.len() >= 2, "bug");
 
     if bytes.len() <= 8 {
-        let mut n = bytes.len();
-        for (i, b) in bytes.iter().copied().enumerate() {
-            if b != 0 {
-                if (b & 0b1000_0000) != 0 {
-                    n += 1;
-                }
-                writer.write_u8(((n - 2) << 5) as u8 | 0b0001_1000 | tag)?;
-                if (b & 0b1000_0000) != 0 {
-                    writer.write_u8(0)?;
-                }
-                for &b in &bytes[i..] {
-                    writer.write_u8(b)?;
-                }
-                break;
-            }
-            n -= 1;
-        }
+        writer.write_u8(((bytes.len() - 2) << 5) as u8 | 0b0001_1000 | tag)?;
+        writer.write_all(bytes)?;
     } else {
         writer.write_u8(tag | 0b1111_1000)?;
         (bytes.len() - 8).encode(writer)?;
@@ -556,7 +541,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn decode_integer_works() {
+    fn decode_encode_integer_works() {
         let data: &[(&[u8], i64)] = &[
             (&[0], 0),
             (&[16], 1),
@@ -571,6 +556,10 @@ mod tests {
         for (input, expected) in data {
             let decoded = decode_integer(input[0], &mut &input[1..]).expect("decode failure");
             assert_eq!(decoded, BigInt::from(*expected));
+
+            let mut encoded = Vec::new();
+            encode_integer(input[0] & 0b111, &decoded, &mut encoded).expect("encode failure");
+            assert_eq!(encoded, *input);
         }
     }
 }
