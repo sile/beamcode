@@ -2,8 +2,11 @@
 name = "beamcode"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "MIT OR Apache-2.0"
+description = "Erlang BEAM instructions encoding / decoding library"
+homepage = "https://github.com/sile/beamcode"
+repository = "https://github.com/sile/beamcode"
+readme = "README.md"
 
 [dependencies]
 beamcode_derive = { path = "beamcode_derive", version = "0.1.0" }
