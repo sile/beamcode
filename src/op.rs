@@ -1,4 +1,4 @@
-use crate::term::{Atom, Label, List, Register, Term, YRegister};
+use crate::term::{Allocation, Atom, Label, List, Register, Term, YRegister};
 use crate::{Decode, Encode, Opcode};
 
 // TODO: remove deprecated
@@ -270,15 +270,15 @@ pub struct Bif2Op {
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(12)]
 pub struct AllocateOp {
-    pub stack_need: usize,
+    pub stack_need: Allocation,
     pub live: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(13)]
 pub struct AllocateHeapOp {
-    pub stack_need: usize,
-    pub heap_need: usize,
+    pub stack_need: Allocation,
+    pub heap_need: Allocation,
     pub live: usize,
 }
 
@@ -292,15 +292,15 @@ pub struct AllocateZeroOp {
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(15)]
 pub struct AllocateHeapZeroOp {
-    pub stack_need: usize,
-    pub heap_need: usize,
+    pub stack_need: Allocation,
+    pub heap_need: Allocation,
     pub live: usize,
 }
 
 #[derive(Debug, Clone, Opcode, Decode, Encode)]
 #[opcode(16)]
 pub struct TestHeapOp {
-    pub heap_need: usize,
+    pub heap_need: Allocation,
     pub live: usize,
 }
 

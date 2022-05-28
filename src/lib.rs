@@ -37,6 +37,9 @@ pub enum DecodeError {
         actual: TermKind,
     },
 
+    #[error("unknown allocation list item tag: {tag}")]
+    UnknownAllocationListItemTag { tag: usize },
+
     #[error("unknown opcode: {opcode}")]
     UnknownOpcode { opcode: u8 },
 

@@ -81,9 +81,10 @@ pub enum Term {
     YRegister(YRegister),
     Label(Label),
     List(List),
+    FloatingPointRegister(FloatingPointRegister),
+    AllocationList(AllocationList),
     Literal(Literal),
     TypedRegister(TypedRegister),
-    // TODO: Alloc List, etc
 }
 
 impl Decode for Term {
@@ -97,18 +98,126 @@ impl Decode for Term {
             TermKind::Label => Decode::decode_with_tag(reader, tag).map(Self::Label),
             TermKind::Character => todo!(),
             TermKind::List => Decode::decode_with_tag(reader, tag).map(Self::List),
-            TermKind::FloatingPointRegister => todo!(),
-            TermKind::AllocationList => todo!(),
+            TermKind::FloatingPointRegister => {
+                Decode::decode_with_tag(reader, tag).map(Self::FloatingPointRegister)
+            }
+            TermKind::AllocationList => {
+                Decode::decode_with_tag(reader, tag).map(Self::AllocationList)
+            }
+            TermKind::Literal => Decode::decode_with_tag(reader, tag).map(Self::Literal),
             TermKind::TypedRegister => {
                 Decode::decode_with_tag(reader, tag).map(Self::TypedRegister)
             }
-            TermKind::Literal => Decode::decode_with_tag(reader, tag).map(Self::Literal),
             TermKind::Unknown(_) => Err(DecodeError::UnknownTermTag { tag }),
         }
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Encode)]
+pub enum Allocation {
+    Words(usize),
+    List(AllocationList),
+}
+
+impl Decode for Allocation {
+    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
+        let kind = TermKind::from_tag(tag);
+        kind.expect(&[TermKind::Usize, TermKind::AllocationList])?;
+        if kind == TermKind::Usize {
+            Decode::decode_with_tag(reader, tag).map(Self::Words)
+        } else {
+            Decode::decode_with_tag(reader, tag).map(Self::List)
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct AllocationList {
+    pub items: Vec<AllocationListItem>,
+}
+
+impl Decode for AllocationList {
+    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
+        TermKind::from_tag(tag).expect(&[TermKind::AllocationList])?;
+        let size = usize::decode(reader)?;
+        let items = (0..size)
+            .map(|_| Decode::decode(reader))
+            .collect::<Result<_, _>>()?;
+        Ok(Self { items })
+    }
+}
+
+impl Encode for AllocationList {
+    fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
+        writer.write_u8(TermKind::AllocationList.tag())?;
+        self.items.len().encode(writer)?;
+        for item in &self.items {
+            item.encode(writer)?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AllocationListItem {
+    Words(usize),
+    Floats(usize),
+    Funs(usize),
+}
+
+impl Decode for AllocationListItem {
+    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
+        match usize::decode_with_tag(reader, tag)? {
+            0 => usize::decode(reader).map(Self::Words),
+            1 => usize::decode(reader).map(Self::Floats),
+            2 => usize::decode(reader).map(Self::Funs),
+            tag => Err(DecodeError::UnknownAllocationListItemTag { tag }),
+        }
+    }
+}
+
+impl Encode for AllocationListItem {
+    fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
+        match self {
+            Self::Words(v) => {
+                0.encode(writer)?;
+                v.encode(writer)?;
+            }
+            Self::Floats(v) => {
+                1.encode(writer)?;
+                v.encode(writer)?;
+            }
+            Self::Funs(v) => {
+                2.encode(writer)?;
+                v.encode(writer)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FloatingPointRegister {
+    pub value: usize,
+}
+
+impl Decode for FloatingPointRegister {
+    fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
+        TermKind::from_tag(tag).expect(&[TermKind::FloatingPointRegister])?;
+        Ok(Self {
+            value: usize::decode(reader)?,
+        })
+    }
+}
+
+impl Encode for FloatingPointRegister {
+    fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
+        writer.write_u8(TermKind::FloatingPointRegister.tag())?;
+        self.value.encode(writer)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TypedRegister {
     X { register: XRegister, ty: usize },
     Y { register: YRegister, ty: usize },
@@ -289,14 +398,14 @@ impl Encode for YRegister {
 impl Decode for Vec<YRegister> {
     fn decode_with_tag<R: Read>(reader: &mut R, tag: u8) -> Result<Self, DecodeError> {
         let list = List::decode_with_tag(reader, tag)?;
-        Ok(list.elements)
+        Ok(list.items)
     }
 }
 
 impl Encode for Vec<YRegister> {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
         let list = List {
-            elements: self.iter().copied().map(Term::YRegister).collect(),
+            items: self.iter().copied().map(Term::YRegister).collect(),
         };
         list.encode(writer)
     }
@@ -324,7 +433,7 @@ impl Encode for Label {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct List<T = Term> {
-    pub elements: Vec<T>,
+    pub items: Vec<T>,
 }
 
 impl<T: Decode> Decode for List<T> {
@@ -332,18 +441,18 @@ impl<T: Decode> Decode for List<T> {
         TermKind::from_tag(tag).expect(&[TermKind::List])?;
 
         let size = usize::decode(reader)?;
-        let elements = (0..size)
+        let items = (0..size)
             .map(|_| T::decode(reader))
             .collect::<Result<_, _>>()?;
-        Ok(Self { elements })
+        Ok(Self { items })
     }
 }
 
 impl<T: Encode> Encode for List<T> {
     fn encode<W: Write>(&self, writer: &mut W) -> Result<(), EncodeError> {
         writer.write_u8(TermKind::List.tag())?;
-        self.elements.len().encode(writer)?;
-        for x in &self.elements {
+        self.items.len().encode(writer)?;
+        for x in &self.items {
             x.encode(writer)?;
         }
         Ok(())
