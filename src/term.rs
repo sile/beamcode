@@ -493,7 +493,7 @@ fn decode_integer<R: Read>(tag: u8, reader: &mut R) -> Result<BigInt, DecodeErro
         Ok(BigInt::from_signed_bytes_be(&buf))
     } else {
         let byte_size = usize::decode(reader)?;
-        let mut buf = vec![0; byte_size];
+        let mut buf = vec![0; byte_size + 9];
         reader.read_exact(&mut buf)?;
         Ok(BigInt::from_signed_bytes_be(&buf))
     }
@@ -530,7 +530,7 @@ fn encode_integer_bytes<W: Write>(
         writer.write_all(bytes)?;
     } else {
         writer.write_u8(tag | 0b1111_1000)?;
-        (bytes.len() - 8).encode(writer)?;
+        (bytes.len() - 9).encode(writer)?;
         writer.write_all(bytes)?;
     }
     Ok(())
@@ -553,6 +553,17 @@ mod tests {
             (&[24, 254, 189], -323),
             (&[88, 248, 164, 147, 83], -123432109),
         ];
+        for (input, expected) in data {
+            let decoded = decode_integer(input[0], &mut &input[1..]).expect("decode failure");
+            assert_eq!(decoded, BigInt::from(*expected));
+
+            let mut encoded = Vec::new();
+            encode_integer(input[0] & 0b111, &decoded, &mut encoded).expect("encode failure");
+            assert_eq!(encoded, *input);
+        }
+
+        let data: &[(&[u8], u64)] =
+            &[(&[248, 0, 0, 128, 0, 0, 0, 0, 0, 0, 0], 9223372036854775808)];
         for (input, expected) in data {
             let decoded = decode_integer(input[0], &mut &input[1..]).expect("decode failure");
             assert_eq!(decoded, BigInt::from(*expected));

@@ -62,7 +62,8 @@ pub fn decode_ops(bytecode: &[u8]) -> Result<Vec<Op>, DecodeError> {
     let mut reader = bytecode;
     let mut ops = Vec::new();
     while !reader.is_empty() {
-        ops.push(Op::decode(&mut reader)?);
+        let op = Op::decode(&mut reader)?;
+        ops.push(op);
     }
     Ok(ops)
 }
