@@ -2,6 +2,7 @@
 name = "beamcode"
 version = "0.1.0"
 edition = "2021"
+authors = ["Takeru Ohta <phjgt308@gmail.com>"]
 license = "MIT OR Apache-2.0"
 description = "Erlang BEAM instructions encoding / decoding library"
 homepage = "https://github.com/sile/beamcode"
