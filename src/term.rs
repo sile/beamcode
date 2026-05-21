@@ -50,7 +50,7 @@ impl TermKind {
     }
 
     fn expect(self, expected: &[Self]) -> Result<(), DecodeError> {
-        if expected.iter().any(|&x| x == self) {
+        if expected.contains(&self) {
             Ok(())
         } else {
             Err(DecodeError::UnexpectedTerm {
